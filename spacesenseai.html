@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Sense AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f7f9fc;
+            scroll-behavior: smooth;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .ss-primary {
+            color: #830051;
+        }
+
+        .ss-bg-primary {
+            background-color: #830051;
+        }
+
+        .ss-secondary {
+            color: #28a745;
+        }
+
+        #container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+        }
+
+        #scene-container {
+            flex-grow: 1;
+            position: relative;
+            background-color: #2c3e50;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        #controls-panel {
+            width: 380px;
+            max-width: 380px;
+            min-height: 100vh;
+            background-color: #ffffff;
+            padding: 20px;
+            box-shadow: -4px 0 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            position: relative;
+        }
+
+        #tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 0.5rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 0.8rem;
+            z-index: 1000;
+            white-space: nowrap;
+        }
+
+        .ai-bot-icon {
+            font-size: 4rem;
+            animation: bounce 2s infinite ease-in-out;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .form-control,
+        .form-select,
+        .btn {
+            border-radius: 0.5rem !important;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+
+        .btn-success:hover {
+            background-color: #1e7e34;
+            border-color: #1c7430;
+        }
+
+        .status-message-text {
+            min-height: 80px;
+            padding: 15px;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="container">
+        <div id="scene-container">
+            <div id="tooltip"></div>
+        </div>
+
+        <div id="controls-panel">
+            <h1 class="ss-primary fw-bold mb-3 border-bottom pb-2">Space Sense AI</h1>
+            <p class="small text-muted mb-4">
+                The camera view is restricted to a **top-down map perspective**. Select your workstation to find the
+                **nearest available meeting room**.
+            </p>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="ss-secondary mb-3">Your Location</h5>
+                    <div class="mb-3">
+                        <label for="employeeId" class="form-label small">Your Workstation ID (Origin)</label>
+                        <input type="text" class="form-control" id="employeeId" value="WS-15" placeholder="Enter WS-XX">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="ss-secondary mb-3">Simulate Booking</h5>
+                    <div class="mb-3">
+                        <label for="groupSize" class="form-label small">Number of Attendees</label>
+                        <input type="number" class="form-control" id="groupSize" min="1" max="8" value="2">
+                    </div>
+                    <div class="mb-3">
+                        <label for="startTime" class="form-label small">Start Time</label>
+                        <select class="form-select" id="startTime" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="endTime" class="form-label small">End Time</label>
+                        <select class="form-select" id="endTime" required></select>
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        <button type="button" class="btn btn-success btn-lg rounded-pill shadow" id="confirmBookingBtn">
+                            ASK SPACE SENSE AI
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <h5 class="ss-primary mt-4 mb-2">Simulation Status</h5>
+            <div id="statusMessageText" class="status-message-text text-center alert alert-info">
+                Enter your details and click the button to run the proximity analysis.
+            </div>
+
+            <div class="border-top mt-4 pt-3 d-none">
+                <h5 class="ss-primary">Latest Booking Log</h5>
+                <ul id="bookingLog" class="list-group list-group-flush small">
+                    <li class="list-group-item">System started at ${new Date().toLocaleTimeString()}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal fade" id="aiSuggestionModal" tabindex="-1" aria-labelledby="aiSuggestionModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header ss-bg-primary text-white">
+                    <h5 class="modal-title" id="aiSuggestionModalLabel">Space Sense AI: Your Booking Assistant</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="row g-0">
+                        <div
+                            class="col-3 text-center p-3 bg-light d-flex flex-column align-items-center justify-content-center border-end">
+                            <div class="ai-bot-icon">🤖</div>
+                            <h6 class="mt-2 text-primary fw-bold">Space Sense AI</h6>
+                            <small class="text-muted">Analyzing proximity...</small>
+                        </div>
+                        <div class="col-9 p-4">
+                            <div id="modalContent">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer d-none" id="modalFooter">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const initialBookings = [
+            { roomId: "MR-009 (India)", date: "2025-11-11", start: "09:00", end: "10:30", bookedBy: "JaneD", groupSize: 5, topic: "Q3 Project Alignment" },
+            { roomId: "MR-017 (Quebec)", date: "2025-11-11", start: "10:00", end: "12:00", bookedBy: "JohnS", groupSize: 3, topic: "IT Strategy Meeting" },
+            { roomId: "MR-003 (Gamma)", date: "2025-11-11", start: "13:00", end: "14:00", bookedBy: "AlexP", groupSize: 6, topic: "Marketing Brainstorm" },
+            { roomId: "MR-015 (Oscar)", date: "2025-11-11", start: "14:30", "end": "16:00", bookedBy: "SaraW", groupSize: 8, topic: "Annual Review Prep" },
+            { roomId: "MR-001 (Alpha)", date: "2025-11-11", start: "16:30", end: "17:30", bookedBy: "MikeR", groupSize: 2, topic: "1:1 with Jane Doe" }
+        ];
+
+        let allBookings = [...initialBookings];
+        window.userId = 'FitnessFan_Arpu';
+
+        const SCALE_FACTOR = 3;
+        const ROOM_HEIGHT = 8;
+        const X_AISLE = 10.0;
+        const X_EAST_AISLE = 46.0;
+        const Z_NORTH_AISLE = -15.0;
+        const Z_SOUTH_AISLE = -79.5;
+        const AISLE_COLOR = 0xcccccc;
+
+        const pods = [
+            { id: "POD1", x: 15, z: -30, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod1" },
+            { id: "POD2", x: 21.5, z: -30, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod2" },
+            { id: "POD3", x: 28, z: -30, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod3" },
+            { id: "POD4", x: 34.5, z: -30, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod4" },
+            { id: "POD5", x: 41, z: -30, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod5" },
+            { id: "POD6", x: 15, z: -55, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod6" },
+            { id: "POD7", x: 21.5, z: -55, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod7" },
+            { id: "POD8", x: 28, z: -55, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod8" },
+            { id: "POD9", x: 34.5, z: -55, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod9" },
+            { id: "POD10", x: 41, z: -55, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod10" }
+        ];
+
+        const zones = [
+            { id: "PANTRY (LOOM)", x: 87, z: -45, capacity: 200, w: 10, d: 5, type: "general", label: "Pantry", color: 0x6D4C41 },
+            { id: "GAMES (Arena)", x: 87, z: -35, capacity: 50, w: 10, d: 10, type: "general", label: "Games", color: 0x7CB342 },
+            { id: "Toilet (Toilet)", x: 87, z: -25, capacity: 10, w: 10, d: 5, type: "general", label: "Toilet", color: 0x546E7A }
+        ];
+
+
+        const workstations = [
+            { id: "WS-1", x: 12.75, z: -19.0 }, { id: "WS-2", x: 16.25, z: -19.0 }, { id: "WS-3", x: 19.75, z: -19.0 }, { id: "WS-4", x: 23.25, z: -19.0 }, { id: "WS-5", x: 26.75, z: -19.0 },
+            { id: "WS-6", x: 30.25, z: -19.0 }, { id: "WS-7", x: 33.75, z: -19.0 }, { id: "WS-8", x: 37.25, z: -19.0 }, { id: "WS-9", x: 40.75, z: -19.0 }, { id: "WS-10", x: 44.25, z: -19.0 },
+            { id: "WS-11", x: 12.75, z: -25.0 }, { id: "WS-12", x: 16.25, z: -25.0 }, { id: "WS-13", x: 19.75, z: -25.0 }, { id: "WS-14", x: 23.25, z: -25.0 }, { id: "WS-15", x: 26.75, z: -25.0 },
+            { id: "WS-16", x: 30.25, z: -25.0 }, { id: "WS-17", x: 33.75, z: -25.0 }, { id: "WS-18", x: 37.25, z: -25.0 }, { id: "WS-19", x: 40.75, z: -25.0 }, { id: "WS-20", x: 44.25, z: -25.0 },
+
+            { id: "WS-21", x: 12.75, z: -39.75 }, { id: "WS-22", x: 16.25, z: -39.75 }, { id: "WS-23", x: 19.75, z: -39.75 }, { id: "WS-24", x: 23.25, z: -39.75 }, { id: "WS-25", x: 26.75, z: -39.75 },
+            { id: "WS-26", x: 30.25, z: -39.75 }, { id: "WS-27", x: 33.75, z: -39.75 }, { id: "WS-28", x: 37.25, z: -39.75 }, { id: "WS-29", x: 40.75, z: -39.75 }, { id: "WS-30", x: 44.25, z: -39.75 },
+            { id: "WS-31", x: 12.75, z: -43.25 }, { id: "WS-32", x: 16.25, z: -43.25 }, { id: "WS-33", x: 19.75, z: -43.25 }, { id: "WS-34", x: 23.25, z: -43.25 }, { id: "WS-35", x: 26.75, z: -43.25 },
+            { id: "WS-36", x: 30.25, z: -43.25 }, { id: "WS-37", x: 33.75, z: -43.25 }, { id: "WS-38", x: 37.25, z: -43.25 }, { id: "WS-39", x: 40.75, z: -43.25 }, { id: "WS-40", x: 44.25, z: -43.25 },
+
+            { id: "WS-41", x: 12.75, z: -68.75 }, { id: "WS-42", x: 16.25, z: -68.75 }, { id: "WS-43", x: 19.75, z: -68.75 }, { id: "WS-44", x: 23.25, z: -68.75 }, { id: "WS-45", x: 26.75, z: -68.75 },
+            { id: "WS-46", x: 30.25, z: -68.75 }, { id: "WS-47", x: 33.75, z: -68.75 }, { id: "WS-48", x: 37.25, z: -68.75 }, { id: "WS-49", x: 40.75, z: -68.75 }, { id: "WS-50", x: 44.25, z: -68.75 },
+            { id: "WS-51", x: 12.75, z: -72.25 }, { id: "WS-52", x: 16.25, z: -72.25 }, { id: "WS-53", x: 19.75, z: -72.25 }, { id: "WS-54", x: 23.25, z: -72.25 }, { id: "WS-55", x: 26.75, z: -72.25 },
+            { id: "WS-56", x: 30.25, z: -72.25 }, { id: "WS-57", x: 33.75, z: -72.25 }, { id: "WS-58", x: 37.25, z: -72.25 }, { id: "WS-59", x: 40.75, z: -72.25 }, { id: "WS-60", x: 44.25, z: -72.25 }
+        ];
+
+        const meetingRooms = [
+            { id: "MR-001 (Alpha)", x: 11, z: -5, capacity: 5, w: 10, d: 5 }, { id: "MR-002 (Beta)", x: 28, z: -5, capacity: 4, w: 10, d: 5 }, { id: "MR-003 (Gamma)", x: 45, z: -5, capacity: 6, w: 10, d: 5 }, { id: "MR-004 (Delta)", x: 62, z: -5, capacity: 5, w: 10, d: 5 }, { id: "MR-005 (Echo)", x: 79, z: -5, capacity: 7, w: 10, d: 5 },
+            { id: "MR-006 (Foxtrot)", x: 7, z: -16.5, capacity: 4, w: 5, d: 10 }, { id: "MR-007 (Golf)", x: 7, z: -26.5, capacity: 6, w: 5, d: 10 }, { id: "MR-008 (Hotel)", x: 7, z: -36.5, capacity: 3, w: 5, d: 10 }, { id: "MR-009 (India)", x: 7, z: -46.5, capacity: 8, w: 5, d: 10 }, { id: "MR-010 (Juliet)", x: 7, z: -56.5, capacity: 4, w: 5, d: 10 },
+            { id: "MR-011 (Kilo)", x: 77, z: -13, capacity: 7, w: 5, d: 10 }, { id: "MR-012 (Lima)", x: 77, z: -26, capacity: 4, w: 5, d: 10 }, { id: "MR-013 (Mike)", x: 77, z: -39, capacity: 6, w: 5, d: 10 }, { id: "MR-014 (November)", x: 77, z: -52, capacity: 3, w: 5, d: 10 }, { id: "MR-015 (Oscar)", x: 77, z: -65, capacity: 8, w: 5, d: 10 },
+            { id: "MR-016 (Papa)", x: 15, z: -84.5, capacity: 4, w: 10, d: 5 }, { id: "MR-017 (Quebec)", x: 30, z: -84.5, capacity: 7, w: 10, d: 5 }, { id: "MR-018 (Romeo)", x: 45, z: -84.5, capacity: 3, w: 10, d: 5 }, { id: "MR-019 (Sierra)", x: 60, z: -84.5, capacity: 6, w: 10, d: 5 }, { id: "MR-020 (Tango)", x: 75, z: -84.5, capacity: 5, w: 10, d: 5 }
+        ];
+        const floorDimensions = { width: 90, depth: 90, x: 45, z: -45 };
+
+        let scene, camera, renderer, controls;
+        let raycaster, mouse;
+        let lastSuggestions = [];
+        const objects = [];
+        const lineObjects = [];
+        let mapPinMesh = null;
+        const clock = new THREE.Clock();
+
+
+        const calculateDistance = (p1, p2) => {
+            const X_WEST = X_AISLE;
+            const X_EAST = X_EAST_AISLE;
+
+            const d1a_exit_h = Math.abs(p1.x - X_WEST);
+            const d1b_travel_v = Math.abs(p1.z - p2.z);
+            const d1c_travel_h = Math.abs(X_WEST - p2.x);
+
+            const totalDistanceWest = d1a_exit_h + d1b_travel_v + d1c_travel_h;
+
+            const d2a_exit_h = Math.abs(p1.x - X_EAST);
+            const d2b_travel_v = Math.abs(p1.z - p2.z);
+            const d2c_travel_h = Math.abs(X_EAST - p2.x);
+
+            const totalDistanceEast = d2a_exit_h + d2b_travel_v + d2c_travel_h;
+
+            const totalDistance = Math.min(totalDistanceWest, totalDistanceEast);
+
+            if (totalDistance === totalDistanceWest) {
+                p1.chosenAisle = 'WEST_CORNER';
+            } else {
+                p1.chosenAisle = 'EAST_CORNER';
+            }
+
+            return totalDistance;
+        };
+
+        function isRoomAvailable(roomId, checkDate, checkStart, checkEnd) {
+            const checkingStart = checkDate + 'T' + checkStart + ':00';
+            const checkingEnd = checkDate + 'T' + checkEnd + ':00';
+            const roomBookings = allBookings.filter(b => b.roomId === roomId && b.date === checkDate);
+            for (const booking of roomBookings) {
+                const bookedStart = booking.date + 'T' + booking.start + ':00';
+                const bookedEnd = booking.date + 'T' + booking.end + ':00';
+                if (checkingStart < bookedEnd && checkingEnd > bookedStart) {
+                    return { isBooked: true, booking: booking };
+                }
+            }
+            return { isBooked: false, booking: null };
+        }
+
+        function findNearestAvailableRooms(employeePosition, requiredCapacity, checkDate, checkStart, checkEnd, count = 3) {
+            if (!employeePosition) return [];
+            const employeeWs = { ...employeePosition, x: employeePosition.x, z: employeePosition.z };
+
+            const availableRoomsWithDistance = meetingRooms
+                .filter(room => room.capacity >= requiredCapacity)
+                .map(room => ({
+                    ...room,
+                    availability: isRoomAvailable(room.id, checkDate, checkStart, checkEnd),
+                }))
+                .filter(room => !room.availability.isBooked)
+                .map(room => {
+                    const distance = calculateDistance(employeeWs, room);
+                    return {
+                        ...room,
+                        distance: distance,
+                        chosenAisle: employeeWs.chosenAisle
+                    }
+                });
+
+            availableRoomsWithDistance.sort((a, b) => a.distance - b.distance);
+
+            return availableRoomsWithDistance.slice(0, count).map((room, index) => ({
+                ...room,
+                chosenAisle: room.chosenAisle,
+                rank: index + 1,
+                distance: room.distance.toFixed(1)
+            }));
+        }
+
+        function createTextCanvas(text, color = 'white', rank = null) {
+            const display_text = rank !== null ? String(rank) : text;
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+
+            const fontSize = rank !== null ? 120 : 100;
+            const font = `bold ${fontSize}px Inter, Arial`;
+
+            context.font = font;
+            const textMetrics = context.measureText(display_text);
+            const textWidth = textMetrics.width;
+            const textHeight = fontSize * 1.5;
+
+            canvas.width = textWidth + 40;
+            canvas.height = textHeight;
+
+            context.font = font;
+            const bgColor = rank !== null ? 'rgba(0, 0, 0, 0.4)' : 'rgba(131, 0, 81, 0.7)';
+            context.fillStyle = bgColor;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
+            context.fillStyle = color;
+            context.fillText(display_text, 20, fontSize + 5);
+
+            return canvas;
+        }
+
+        function createMapPinMesh() {
+            const pinGroup = new THREE.Group();
+            const blueMaterial = new THREE.MeshPhongMaterial({ color: 0x007bff });
+
+            const headRadius = 0.5 * SCALE_FACTOR;
+            const headGeo = new THREE.SphereGeometry(headRadius, 32, 32);
+            const pinHead = new THREE.Mesh(headGeo, blueMaterial);
+            pinHead.position.y = headRadius;
+
+            const bodyHeight = 2 * SCALE_FACTOR;
+            const bodyRadius = 0.15 * SCALE_FACTOR;
+            const bodyGeo = new THREE.ConeGeometry(bodyRadius, bodyHeight, 32);
+            const pinBody = new THREE.Mesh(bodyGeo, blueMaterial);
+
+            pinBody.position.y = pinHead.position.y - bodyHeight / 2;
+
+            pinGroup.add(pinHead);
+            pinGroup.add(pinBody);
+
+            pinGroup.rotation.x = -Math.PI / 16;
+
+            pinGroup.userData.isMapPin = true;
+            return pinGroup;
+        }
+
+        function createRankCubicle(rank, color) {
+            const markerGroup = new THREE.Group();
+            const cubicleSize = 0.8 * SCALE_FACTOR;
+            const cubicleHeight = 1.5 * SCALE_FACTOR;
+
+            const markerHalf = cubicleSize / 2;
+
+            const boxGeo = new THREE.BoxGeometry(cubicleSize, cubicleHeight, cubicleSize);
+            const boxMat = new THREE.MeshPhongMaterial({ color: color });
+            const boxMesh = new THREE.Mesh(boxGeo, boxMat);
+            boxMesh.position.y = cubicleHeight / 2;
+            markerGroup.add(boxMesh);
+
+            const labelCanvas = createTextCanvas(String(rank), 'white', rank);
+            const texture = new THREE.CanvasTexture(labelCanvas);
+            texture.minFilter = THREE.LinearFilter;
+
+            const labelMaterial = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                side: THREE.FrontSide
+            });
+
+            const planeHeight = cubicleHeight * 0.9;
+            const planeWidth = cubicleSize * 0.9;
+            const labelGeo = new THREE.PlaneGeometry(planeWidth, planeHeight);
+            const labelMesh = new THREE.Mesh(labelGeo, labelMaterial);
+
+            labelMesh.position.set(0, cubicleHeight / 2, markerHalf + 0.05);
+            labelMesh.userData.isLabel = true;
+
+            markerGroup.add(labelMesh);
+            markerGroup.userData.isRankMarker = true;
+            markerGroup.userData.markerHalf = markerHalf;
+
+            return markerGroup;
+        }
+
+
+        function init3DScene() {
+            const container = document.getElementById('scene-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f0f0);
+            objects.length = 0;
+
+            camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+            camera.position.set(200, 450, -200);
+            camera.lookAt(floorDimensions.x * SCALE_FACTOR, 0, floorDimensions.z * SCALE_FACTOR);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 10;
+            controls.maxDistance = 500;
+
+            controls.minPolarAngle = 0;
+            controls.maxPolarAngle = Math.PI / 4;
+
+            controls.enablePan = false;
+            controls.target.set(floorDimensions.x * SCALE_FACTOR, 0, floorDimensions.z * SCALE_FACTOR);
+
+
+            const ambientLight = new THREE.AmbientLight(0xcccccc, 0.9);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            directionalLight.position.set(100, 150, 50);
+            scene.add(directionalLight);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            draw3DFloorPlan();
+
+            container.addEventListener('mousemove', onMouseMove, false);
+            container.addEventListener('click', onMouseClick, false);
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function clearRoomLabels(roomGroup) {
+            if (roomGroup.rankMarker) {
+                scene.remove(roomGroup.rankMarker);
+                roomGroup.rankMarker.traverse(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(m => m.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                });
+                roomGroup.rankMarker = null;
+            }
+        }
+
+        function drawWorkstations() {
+            const DESK_WIDTH = 2.5 * SCALE_FACTOR;
+            const DESK_DEPTH = 1.5 * SCALE_FACTOR;
+            const DESK_HEIGHT = 0.3 * SCALE_FACTOR;
+            const DESK_Y = DESK_HEIGHT / 2;
+
+            const CHAIR_RADIUS = 0.5 * SCALE_FACTOR;
+            const PERSON_RADIUS = 0.8 * SCALE_FACTOR;
+            const PERSON_Y = DESK_HEIGHT + PERSON_RADIUS;
+
+            const deskMat = new THREE.MeshPhongMaterial({ color: 0x4f4f4f });
+            const chairMat = new THREE.MeshPhongMaterial({ color: 0xcccccc });
+            const personMat = new THREE.MeshPhongMaterial({ color: 0x964b00 });
+
+            workstations.forEach(ws => {
+                const wsGroup = new THREE.Group();
+                wsGroup.userData = { isWorkstation: true, id: ws.id, baseColor: chairMat.color.getHex() };
+                wsGroup.position.set(ws.x * SCALE_FACTOR, 0, ws.z * SCALE_FACTOR);
+
+                const wsNumber = parseInt(ws.id.split('-')[1]);
+                if ((wsNumber >= 1 && wsNumber <= 10) ||
+                    (wsNumber >= 31 && wsNumber <= 40) ||
+                    (wsNumber >= 51 && wsNumber <= 60)) {
+
+                    wsGroup.rotation.y = Math.PI;
+                } else {
+                    wsGroup.rotation.y = 0;
+                }
+
+                const deskGeo = new THREE.BoxGeometry(DESK_WIDTH, DESK_HEIGHT, DESK_DEPTH);
+                const deskMesh = new THREE.Mesh(deskGeo, deskMat);
+                deskMesh.position.y = DESK_Y;
+                deskMesh.userData.wsType = 'desk';
+                wsGroup.add(deskMesh);
+
+                const chairGeo = new THREE.CylinderGeometry(CHAIR_RADIUS, CHAIR_RADIUS, 0.5 * SCALE_FACTOR, 16);
+                const chairMesh = new THREE.Mesh(chairGeo, chairMat);
+                chairMesh.position.set(0, 0.25 * SCALE_FACTOR, DESK_DEPTH / 2 + CHAIR_RADIUS + 0.5 * SCALE_FACTOR);
+                chairMesh.userData.wsType = 'chair';
+                wsGroup.add(chairMesh);
+
+                const personGeo = new THREE.SphereGeometry(PERSON_RADIUS, 16, 16);
+                const personMesh = new THREE.Mesh(personGeo, personMat);
+                personMesh.position.set(chairMesh.position.x, PERSON_Y, chairMesh.position.z);
+                personMesh.userData.wsType = 'person';
+                wsGroup.add(personMesh);
+
+                scene.add(wsGroup);
+                objects.push(wsGroup);
+            });
+        }
+
+        function drawOtherZones() {
+            const allZones = [...pods, ...zones];
+
+            allZones.forEach(item => {
+                const itemGroup = new THREE.Group();
+                const isPod = item.type === 'pod';
+
+                let wallsColor, wallsOpacity, floorOpacity;
+
+                if (isPod) {
+                    wallsColor = 0xADD8E6;
+                    wallsOpacity = 0.3;
+                    floorOpacity = 0.3;
+                    itemGroup.userData = { isPod: true, id: item.id, capacity: item.capacity, baseColor: wallsColor, w: item.w, d: item.d };
+                } else {
+                    wallsColor = item.color || 0xAAAAAA;
+                    wallsOpacity = 0.5;
+                    floorOpacity = 0.6;
+                    itemGroup.userData = { isZone: true, id: item.id, label: item.label, baseColor: wallsColor, w: item.w, d: item.d };
+                }
+
+                itemGroup.position.set(item.x * SCALE_FACTOR, 0, item.z * SCALE_FACTOR);
+
+                const floorAreaGeo = new THREE.BoxGeometry(item.w * SCALE_FACTOR, 0.5, item.d * SCALE_FACTOR);
+                const floorAreaMat = new THREE.MeshBasicMaterial({ color: item.color || 0xcccccc, transparent: true, opacity: floorOpacity });
+                const floorArea = new THREE.Mesh(floorAreaGeo, floorAreaMat);
+                floorArea.position.set(0, 0.25, 0);
+                itemGroup.add(floorArea);
+
+                const wallMat = new THREE.MeshStandardMaterial({
+                    color: wallsColor,
+                    transparent: true,
+                    opacity: wallsOpacity,
+                    side: THREE.DoubleSide
+                });
+
+                const wallsGeo = new THREE.BoxGeometry(item.w * SCALE_FACTOR, ROOM_HEIGHT, item.d * SCALE_FACTOR);
+                const walls = new THREE.Mesh(wallsGeo, wallMat);
+                walls.position.set(0, ROOM_HEIGHT / 2, 0);
+                itemGroup.add(walls);
+
+                itemGroup.walls = walls;
+
+                const labelText = item.label || item.id;
+                const labelCanvas = createTextCanvas(labelText, 'white', null);
+                const texture = new THREE.CanvasTexture(labelCanvas);
+                texture.minFilter = THREE.LinearFilter;
+
+                const labelMaterial = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    transparent: true,
+                    side: THREE.DoubleSide
+                });
+
+                const aspectRatio = labelCanvas.width / labelCanvas.height;
+                const labelPlaneHeight = 3 * SCALE_FACTOR;
+                const labelPlaneWidth = labelPlaneHeight * aspectRatio;
+
+                const labelGeo = new THREE.PlaneGeometry(labelPlaneWidth, labelPlaneHeight);
+                const labelMesh = new THREE.Mesh(labelGeo, labelMaterial);
+
+                labelMesh.position.set(item.x * SCALE_FACTOR, ROOM_HEIGHT + 0.5, item.z * SCALE_FACTOR);
+                labelMesh.rotation.x = -Math.PI / 2;
+
+                itemGroup.label = labelMesh;
+                scene.add(labelMesh);
+
+                scene.add(itemGroup);
+                objects.push(itemGroup);
+            });
+        }
+
+        function drawAisles() {
+            const AISLE_HEIGHT = 0.05;
+            const aisleMat = new THREE.MeshPhongMaterial({ color: AISLE_COLOR, transparent: true, opacity: 0.1 });
+            const aisleGroup = new THREE.Group();
+            aisleGroup.userData.isAisle = true;
+
+            const fullDepth = floorDimensions.depth * SCALE_FACTOR;
+            const floorCenterZ = floorDimensions.z * SCALE_FACTOR;
+            const fullWidth = floorDimensions.width * SCALE_FACTOR;
+            const floorCenterX = floorDimensions.x * SCALE_FACTOR;
+
+            const v1Width = X_AISLE * SCALE_FACTOR;
+            const v1Geo = new THREE.BoxGeometry(v1Width, AISLE_HEIGHT, fullDepth);
+            const v1Aisle = new THREE.Mesh(v1Geo, aisleMat);
+            v1Aisle.position.set((X_AISLE / 2) * SCALE_FACTOR, AISLE_HEIGHT / 2, floorCenterZ);
+            aisleGroup.add(v1Aisle);
+
+            const v2Width = 9.0 * SCALE_FACTOR;
+            const v2Center = X_EAST_AISLE + 4.5;
+            const v2Geo = new THREE.BoxGeometry(v2Width, AISLE_HEIGHT, fullDepth);
+            const v2Aisle = new THREE.Mesh(v2Geo, aisleMat);
+            v2Aisle.position.set(v2Center * SCALE_FACTOR, AISLE_HEIGHT / 2, floorCenterZ);
+            aisleGroup.add(v2Aisle);
+
+            const v3Width = 20.0 * SCALE_FACTOR;
+            const v3Center = 80.0;
+            const v3Geo = new THREE.BoxGeometry(v3Width, AISLE_HEIGHT, fullDepth);
+            const v3Aisle = new THREE.Mesh(v3Geo, aisleMat);
+            v3Aisle.position.set(v3Center * SCALE_FACTOR, AISLE_HEIGHT / 2, floorCenterZ);
+            aisleGroup.add(v3Aisle);
+
+
+            const h1Depth = 6.0 * SCALE_FACTOR;
+            const h1CenterZ = Z_NORTH_AISLE;
+            const h1Geo = new THREE.BoxGeometry(fullWidth, AISLE_HEIGHT, h1Depth);
+            const h1Aisle = new THREE.Mesh(h1Geo, aisleMat);
+            h1Aisle.position.set(floorCenterX, AISLE_HEIGHT / 2, h1CenterZ * SCALE_FACTOR);
+            aisleGroup.add(h1Aisle);
+
+            const h2Depth = 14.0 * SCALE_FACTOR;
+            const h2CenterZ = -32.0;
+            const h2Geo = new THREE.BoxGeometry(fullWidth, AISLE_HEIGHT, h2Depth);
+            const h2Aisle = new THREE.Mesh(h2Geo, aisleMat);
+            h2Aisle.position.set(floorCenterX, AISLE_HEIGHT / 2, h2CenterZ * SCALE_FACTOR);
+            aisleGroup.add(h2Aisle);
+
+            const h3Depth = 24.0 * SCALE_FACTOR;
+            const h3CenterZ = -56.0;
+            const h3Geo = new THREE.BoxGeometry(fullWidth, AISLE_HEIGHT, h3Depth);
+            const h3Aisle = new THREE.Mesh(h3Geo, aisleMat);
+            h3Aisle.position.set(floorCenterX, AISLE_HEIGHT / 2, h3CenterZ * SCALE_FACTOR);
+            aisleGroup.add(h3Aisle);
+
+            const h4Depth = 5.0 * SCALE_FACTOR;
+            const h4CenterZ = Z_SOUTH_AISLE;
+            const h4Geo = new THREE.BoxGeometry(fullWidth, AISLE_HEIGHT, h4Depth);
+            const h4Aisle = new THREE.Mesh(h4Geo, aisleMat);
+            h4Aisle.position.set(floorCenterX, AISLE_HEIGHT / 2, h4CenterZ * SCALE_FACTOR);
+            aisleGroup.add(h4Aisle);
+
+            scene.add(aisleGroup);
+            objects.push(aisleGroup);
+        }
+
+        function updateRoomAvailabilityDisplay(startTime, endTime) {
+            const checkDate = "2025-11-11";
+            const bookedColor = 0x8B0000;
+            const availableColor = 0x28a745;
+
+            objects.forEach(group => {
+                if (group.userData.isRoom) {
+                    const roomData = group.userData;
+                    const status = isRoomAvailable(roomData.id, checkDate, startTime, endTime);
+
+                    const newColor = status.isBooked ? bookedColor : availableColor;
+
+                    group.userData.baseColor = newColor;
+
+                    const isHighlighted = lastSuggestions.some(r => r.id === roomData.id);
+
+                    if (!isHighlighted) {
+                        group.walls.material.color.setHex(newColor);
+                        group.walls.material.opacity = 0.1;
+                    }
+                }
+            });
+        }
+
+
+        function draw3DFloorPlan() {
+            const floorGeo = new THREE.PlaneGeometry(floorDimensions.width * SCALE_FACTOR, floorDimensions.depth * SCALE_FACTOR);
+            const floorMat = new THREE.MeshPhongMaterial({ color: 0x474e54, side: THREE.DoubleSide });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.set(floorDimensions.x * SCALE_FACTOR, 0, floorDimensions.z * SCALE_FACTOR);
+            scene.add(floor);
+
+            drawAisles();
+
+            drawWorkstations();
+
+            drawOtherZones();
+
+            const initialColor = 0x28a745;
+
+            meetingRooms.forEach(room => {
+                const roomGroup = new THREE.Group();
+                roomGroup.userData = { isRoom: true, id: room.id, capacity: room.capacity, baseColor: initialColor, w: room.w, d: room.d };
+                roomGroup.position.set(room.x * SCALE_FACTOR, 0, room.z * SCALE_FACTOR);
+
+                const floorAreaGeo = new THREE.BoxGeometry(room.w * SCALE_FACTOR, 0.5, room.d * SCALE_FACTOR);
+                const floorAreaMat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.5 });
+                const floorArea = new THREE.Mesh(floorAreaGeo, floorAreaMat);
+                floorArea.position.set(0, 0.25, 0);
+                roomGroup.add(floorArea);
+
+                const wallMat = new THREE.MeshStandardMaterial({
+                    color: initialColor,
+                    transparent: true,
+                    opacity: 0.1,
+                    side: THREE.DoubleSide
+                });
+
+                const wallsGeo = new THREE.BoxGeometry(room.w * SCALE_FACTOR, ROOM_HEIGHT, room.d * SCALE_FACTOR);
+                const walls = new THREE.Mesh(wallsGeo, wallMat);
+                walls.position.set(0, ROOM_HEIGHT / 2, 0);
+                roomGroup.add(walls);
+
+                roomGroup.walls = walls;
+
+                const roomName = room.id.split('(')[0].trim();
+                const labelCanvas = createTextCanvas(roomName, 'white', null);
+                const texture = new THREE.CanvasTexture(labelCanvas);
+                texture.minFilter = THREE.LinearFilter;
+
+                const labelMaterial = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    transparent: true,
+                    side: THREE.DoubleSide
+                });
+
+                const aspectRatio = labelCanvas.width / labelCanvas.height;
+                const labelPlaneHeight = 3 * SCALE_FACTOR;
+                const labelPlaneWidth = labelPlaneHeight * aspectRatio;
+
+                const labelGeo = new THREE.PlaneGeometry(labelPlaneWidth, labelPlaneHeight);
+                const labelMesh = new THREE.Mesh(labelGeo, labelMaterial);
+
+                labelMesh.position.set(room.x * SCALE_FACTOR, ROOM_HEIGHT + 0.5, room.z * SCALE_FACTOR);
+                labelMesh.rotation.x = -Math.PI / 2;
+
+                if (roomGroup.label) {
+                    scene.remove(roomGroup.label);
+                    roomGroup.label.geometry.dispose();
+                    roomGroup.label.material.dispose();
+                }
+
+                roomGroup.label = labelMesh;
+                scene.add(labelMesh);
+
+                scene.add(roomGroup);
+                objects.push(roomGroup);
+            });
+
+            highlightEmployee(document.getElementById('employeeId').value.toUpperCase());
+        }
+
+        function highlightEmployee(employeeId) {
+            let selectedGroup = null;
+
+            objects.forEach(obj => {
+                if (obj.userData.isWorkstation) {
+                    const isSelected = obj.userData.id === employeeId;
+                    const newColor = isSelected ? 0xffc107 : obj.userData.baseColor;
+
+                    obj.children.forEach(child => {
+                        if (child.userData.wsType === 'chair' || child.userData.wsType === 'person') {
+                            child.material.color.setHex(newColor);
+                        } else if (child.userData.wsType === 'desk') {
+                            child.material.color.setHex(0x4f4f4f);
+                        } else if (child.geometry.type === 'BoxGeometry') {
+                            child.material.color.setHex(0xcccccc);
+                        }
+                    });
+
+                    obj.position.y = isSelected ? 0.5 : 0;
+
+                    if (isSelected) {
+                        selectedGroup = obj;
+                    }
+                }
+            });
+
+            if (mapPinMesh) {
+                scene.remove(mapPinMesh);
+                mapPinMesh = null;
+            }
+
+            if (selectedGroup) {
+                mapPinMesh = createMapPinMesh();
+
+                const personTopUnscaled = (0.3 * 2) + 0.8;
+
+                const levitationHeight = personTopUnscaled * SCALE_FACTOR + 1 * SCALE_FACTOR;
+
+                mapPinMesh.position.set(
+                    selectedGroup.position.x,
+                    levitationHeight,
+                    selectedGroup.position.z
+                );
+                scene.add(mapPinMesh);
+            }
+        }
+
+        function highlightRooms(nearestRooms) {
+            lineObjects.forEach(line => scene.remove(line));
+            lineObjects.length = 0;
+
+            const employeeId = document.getElementById('employeeId').value.toUpperCase();
+            const employeeWs = workstations.find(ws => ws.id === employeeId);
+            const highlightColor = 0xffa500;
+
+            const PATH_Y_HEIGHT = 0.5;
+
+            const origin = employeeWs ? new THREE.Vector3(employeeWs.x * SCALE_FACTOR, PATH_Y_HEIGHT, employeeWs.z * SCALE_FACTOR) : null;
+
+            objects.forEach(group => {
+                if (group.userData.isRoom) {
+                    const roomData = nearestRooms.find(r => r.id === group.userData.id);
+                    const walls = group.walls;
+
+                    walls.material.opacity = 0.1;
+                    walls.material.color.setHex(group.userData.baseColor);
+                    clearRoomLabels(group);
+
+                    if (roomData) {
+                        walls.material.color.setHex(highlightColor);
+                        walls.material.opacity = 0.3;
+
+                        const markerGroup = createRankCubicle(roomData.rank, highlightColor);
+                        const onTopY = ROOM_HEIGHT + 0.5;
+
+                        markerGroup.rotation.y = 0;
+
+                        markerGroup.position.set(
+                            group.position.x,
+                            onTopY,
+                            group.position.z
+                        );
+
+                        group.rankMarker = markerGroup;
+                        scene.add(markerGroup);
+
+                        if (origin) {
+                            const destination = walls.position.clone().add(group.position);
+                            destination.y = PATH_Y_HEIGHT;
+
+                            let points = [origin];
+                            const scaled_X_WEST = X_AISLE * SCALE_FACTOR;
+                            const scaled_X_EAST = X_EAST_AISLE * SCALE_FACTOR;
+
+                            if (roomData.chosenAisle === 'WEST_CORNER' || roomData.chosenAisle === 'EAST_CORNER') {
+                                const chosenAisleX = roomData.chosenAisle === 'WEST_CORNER' ? scaled_X_WEST : scaled_X_EAST;
+
+                                points.push(new THREE.Vector3(chosenAisleX, PATH_Y_HEIGHT, origin.z));
+
+                                points.push(new THREE.Vector3(chosenAisleX, PATH_Y_HEIGHT, destination.z));
+
+                                points.push(destination);
+
+                            } else {
+                                points.push(destination);
+                            }
+
+                            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                            const lineMaterial = new THREE.LineDashedMaterial({
+                                color: highlightColor,
+                                linewidth: 3,
+                                scale: 1,
+                                dashSize: 2 * SCALE_FACTOR / 10,
+                                gapSize: 2 * SCALE_FACTOR / 10,
+                            });
+                            const line = new THREE.Line(geometry, lineMaterial);
+                            line.computeLineDistances();
+                            scene.add(line);
+                            lineObjects.push(line);
+                        }
+                    }
+                }
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            if (mapPinMesh) {
+                const time = clock.getElapsedTime();
+                const bounceAmplitude = 0.2 * SCALE_FACTOR;
+                const bounceSpeed = 4;
+
+                const initialY = mapPinMesh.userData.initialY || mapPinMesh.position.y;
+                mapPinMesh.userData.initialY = initialY;
+
+                mapPinMesh.position.y = initialY + Math.sin(time * bounceSpeed) * bounceAmplitude;
+
+                mapPinMesh.rotation.y += 0.02;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        let intersectedObject = null;
+        let tooltip = document.getElementById('tooltip');
+        let currentRoomColor = 0xcccccc;
+
+        function onMouseMove(event) {
+            event.preventDefault();
+
+            const container = document.getElementById('scene-container');
+            const rect = container.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = - ((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(objects, true);
+
+            if (intersects.length > 0) {
+                let newIntersected = intersects[0].object;
+
+                while (newIntersected.parent && !newIntersected.userData.isRoom && !newIntersected.userData.isWorkstation && !newIntersected.userData.isPod && !newIntersected.userData.isZone && !newIntersected.userData.isAisle) {
+                    if (newIntersected.parent.userData.isAisle) {
+                        newIntersected = newIntersected.parent;
+                        break;
+                    }
+                    newIntersected = newIntersected.parent;
+                }
+
+                if (newIntersected !== intersectedObject) {
+                    if (intersectedObject) {
+                        resetHighlight(intersectedObject);
+                    }
+                    intersectedObject = newIntersected;
+                    applyHighlight(intersectedObject, event.clientX, event.clientY);
+                } else {
+                    updateTooltipPosition(event.clientX, event.clientY);
+                }
+            } else {
+                if (intersectedObject) {
+                    resetHighlight(intersectedObject);
+                }
+                intersectedObject = null;
+                tooltip.style.opacity = 0;
+            }
+        }
+
+        function applyHighlight(obj, clientX, clientY) {
+            tooltip.style.opacity = 1;
+            updateTooltipPosition(clientX, clientY);
+            const roomData = obj.userData;
+
+            if (obj.userData.isWorkstation) {
+                tooltip.innerHTML = `Workstation: <b>${obj.userData.id}</b>`;
+
+                obj.children.forEach(child => {
+                    if (child.userData.wsType === 'chair' || child.userData.wsType === 'person') {
+                        if (obj.userData.id !== document.getElementById('employeeId').value.toUpperCase()) {
+                            child.material.color.setHex(0x28a745);
+                        }
+                    }
+                });
+
+            } else if (obj.userData.isRoom) {
+                const startTime = document.getElementById('startTime').value;
+                const endTime = document.getElementById('endTime').value;
+                const status = isRoomAvailable(roomData.id, "2025-11-11", startTime, endTime);
+                const roomSuggestion = lastSuggestions.find(r => r.id === roomData.id);
+                const rank = roomSuggestion?.rank;
+
+                if (!rank) {
+                    currentRoomColor = obj.userData.baseColor;
+                    obj.walls.material.color.setHex(0xaaaaaa);
+                    obj.walls.material.opacity = 0.5;
+                }
+
+                let statusHtml = status.isBooked ? `<span class="text-danger">BOOKED</span>` : `<span class="text-success">AVAILABLE</span>`;
+                let rankHtml = rank ? `<br/><span style="color:#ffc107;">#${rank} (Ranked Room)</span>` : '';
+
+                tooltip.innerHTML = `
+                    Room: <b>${roomData.id}</b><br/>
+                    Capacity: ${roomData.capacity}<br/>
+                    Status: ${statusHtml}${rankHtml}
+                `;
+            } else if (obj.userData.isPod) {
+                tooltip.innerHTML = `
+                    Focus Pod: <b>${roomData.id}</b><br/>
+                    Capacity: ${roomData.capacity}<br/>
+                    Status: <span class="text-secondary">Available (Non-Bookable)</span>
+                `;
+                obj.walls.material.color.setHex(0x3CB371);
+                obj.walls.material.opacity = 0.5;
+            } else if (obj.userData.isZone) {
+                tooltip.innerHTML = `
+                    Zone: <b>${roomData.label}</b><br/>
+                    Location: ${roomData.id.split('(')[0].trim()}<br/>
+                    Status: <span class="text-secondary">Context Area</span>
+                `;
+                obj.walls.material.color.setHex(0xCCCCCC);
+                obj.walls.material.opacity = 0.7;
+            } else if (obj.userData.isAisle) {
+                tooltip.innerHTML = `
+                    <b>Primary Aisle/Corridor</b><br/>
+                    Mandatory path for distance calculation.
+                `;
+            }
+        }
+
+        function resetHighlight(obj) {
+            if (obj.userData.isWorkstation) {
+                const newColor = (obj.userData.id === document.getElementById('employeeId').value.toUpperCase()) ? 0xffc107 : obj.userData.baseColor;
+
+                obj.children.forEach(child => {
+                    if (child.userData.wsType === 'chair' || child.userData.wsType === 'person') {
+                        child.material.color.setHex(newColor);
+                    }
+                });
+
+            } else if (obj.userData.isRoom) {
+                const rank = lastSuggestions.find(r => r.id === obj.userData.id)?.rank;
+                if (!rank) {
+                    obj.walls.material.color.setHex(obj.userData.baseColor);
+                    obj.walls.material.opacity = 0.1;
+                }
+            } else if (obj.userData.isPod) {
+                obj.walls.material.color.setHex(obj.userData.baseColor);
+                obj.walls.material.opacity = 0.3;
+            } else if (obj.userData.isZone) {
+                obj.walls.material.color.setHex(obj.userData.baseColor);
+                obj.walls.material.opacity = 0.5;
+            } else if (obj.userData.isAisle) {
+            }
+        }
+
+        function updateTooltipPosition(clientX, clientY) {
+            tooltip.style.left = (clientX + 10) + 'px';
+            tooltip.style.top = (clientY - 30) + 'px';
+        }
+
+        function onMouseClick(event) {
+            if (intersectedObject && intersectedObject.userData.isWorkstation) {
+                const newId = intersectedObject.userData.id;
+                document.getElementById('employeeId').value = newId;
+                handleLogicUpdate();
+            }
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('scene-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        function handleLogicUpdate() {
+            allBookings = [...initialBookings];
+
+            const employeeId = document.getElementById('employeeId').value.toUpperCase();
+            const groupSize = parseInt(document.getElementById('groupSize').value);
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+            const checkDate = "2025-11-11";
+
+            const simulationValid = employeeId && startTime && endTime && startTime < endTime && groupSize > 0;
+            const employeeWs = workstations.find(ws => ws.id === employeeId);
+
+            updateRoomAvailabilityDisplay(startTime, endTime);
+
+            highlightEmployee(employeeId);
+
+            if (simulationValid && employeeWs) {
+                const recommendedRooms = findNearestAvailableRooms(employeeWs, groupSize, checkDate, startTime, endTime, 3);
+                lastSuggestions = recommendedRooms;
+
+                highlightRooms(recommendedRooms);
+
+                updateStatusMessage(recommendedRooms, employeeId, startTime, endTime, simulationValid);
+            } else {
+                lastSuggestions = [];
+                highlightRooms([]);
+                updateStatusMessage([], employeeId, startTime, endTime, false);
+            }
+        }
+
+        function updateStatusMessage(nearestRooms, employeeId, startTime, endTime, simulationValid) {
+            const statusBox = document.getElementById('statusMessageText');
+            const workstation = workstations.find(ws => ws.id === employeeId);
+
+            if (!statusBox) return;
+
+            if (!workstation) {
+                statusBox.className = 'status-message-text text-center alert alert-danger';
+                statusBox.innerHTML = '🛑 Invalid **Workstation ID**. Click a person in 3D or enter a valid ID (e.g., WS-15).';
+                return;
+            }
+
+            if (!simulationValid) {
+                statusBox.className = 'status-message-text text-center alert alert-info';
+                statusBox.innerHTML = 'Set a valid **Start Time** and **End Time** and click the button to analyze proximity.';
+                return;
+            }
+
+            if (nearestRooms.length > 0) {
+                statusBox.className = 'status-message-text text-center alert alert-success';
+                statusBox.innerHTML = `
+                    ✅ **Proximity Scan Complete!**<br>
+                    Time: ${startTime} - ${endTime}. Click **ASK SPACE SENSE AI** to book.
+                `;
+            } else {
+                statusBox.className = 'status-message-text text-center alert alert-danger';
+                statusBox.innerHTML = `
+                    ❌ **No Available Rooms** found for ${document.getElementById('groupSize').value} people during ${startTime} - ${endTime}.
+                `;
+            }
+        }
+
+        function populateTimeSelects() {
+            const startSelect = document.getElementById('startTime');
+            const endSelect = document.getElementById('endTime');
+            if (!startSelect || !endSelect) return;
+
+            startSelect.innerHTML = '';
+            endSelect.innerHTML = '';
+
+            for (let h = 0; h < 24; h++) {
+                for (let m = 0; m < 60; m += 30) {
+                    const time24 = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                    const hour12 = h % 12 || 12;
+                    const ampm = h < 12 ? 'AM' : 'PM';
+                    const displayTime = `${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
+
+                    startSelect.add(new Option(displayTime, time24));
+                    endSelect.add(new Option(displayTime, time24));
+                }
+            }
+        }
+
+        function setInitialTime() {
+            populateTimeSelects();
+            document.getElementById('startTime').value = '11:00';
+            document.getElementById('endTime').value = '12:00';
+        }
+
+        function logBooking(message) {
+            const logList = document.getElementById('bookingLog');
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.innerHTML = `${message} <span class="badge bg-secondary">${new Date().toLocaleTimeString()}</span>`;
+            logList.prepend(li);
+        }
+
+        function handleBooking() {
+            const groupSize = parseInt(document.getElementById('groupSize').value);
+            const checkDate = "2025-11-11";
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+
+            if (!document.getElementById('employeeId').value || !startTime || !endTime || startTime >= endTime) {
+                logBooking('<span class="text-danger">Simulation failed: Check input fields.</span>');
+                return;
+            }
+
+            const recommendedRooms = lastSuggestions;
+
+            if (recommendedRooms.length > 0) {
+                const bestRoom = recommendedRooms[0];
+                let optionsHtml = '<div id="roomOptions" class="list-group ai-options-list">';
+
+                recommendedRooms.forEach((room, index) => {
+                    optionsHtml += `
+                        <button type="button" class="list-group-item list-group-item-action ${index === 0 ? 'list-group-item-warning' : ''}"
+                                onclick="confirmBooking('${room.id}', ${room.capacity}, ${room.distance})">
+                            <b>#${room.rank} - ${room.id}</b>
+                            <span class="badge text-bg-secondary ms-2">Cap: ${room.capacity}</span>
+                            <span class="badge text-bg-primary ms-2">Dist: ${room.distance} units</span>
+                            <span class="float-end">Select &raquo;</span>
+                        </button>
+                    `;
+                });
+                optionsHtml += '</div>';
+
+                document.getElementById('modalContent').innerHTML = `
+                    <p>Hi **${window.userId}**, the AI has found **${recommendedRooms.length} available rooms**.</p>
+                    <p>The top choice, **${bestRoom.id}**, is the nearest available room (${bestRoom.distance} units). Select an option to confirm:</p>
+                    ${optionsHtml}`;
+
+                new bootstrap.Modal(document.getElementById('aiSuggestionModal')).show();
+            } else {
+                logBooking('<span class="text-danger">No available rooms matched criteria.</span>');
+                document.getElementById('modalContent').innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        ❌ <strong>No Match Found.</strong> No available rooms for ${groupSize} people during that slot.
+                    </div>
+                `;
+                new bootstrap.Modal(document.getElementById('aiSuggestionModal')).show();
+            }
+        }
+
+        function confirmBooking(roomId, capacity, distance) {
+            const checkDate = "2025-11-11";
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+            const groupSize = parseInt(document.getElementById('groupSize').value);
+
+            const newBooking = {
+                roomId: roomId,
+                date: checkDate,
+                start: startTime,
+                end: endTime,
+                bookedBy: window.userId,
+                groupSize: groupSize,
+                topic: 'Proximity Booking',
+                createdAt: new Date().toISOString()
+            };
+
+            allBookings.push(newBooking);
+
+            document.getElementById('modalContent').innerHTML = `
+                <div class="text-center">
+                    <h4 class="text-success mb-3">🎉 Booking Confirmed!</h4>
+                    <div class="alert alert-success" role="alert">
+                        <b>Room:</b> ${roomId}<br>
+                        <b>Time:</b> ${startTime} to ${endTime}.<br>
+                        <b>Distance:</b> ${distance} units
+                    </div>
+                    <p class="mt-4 fw-bold">Booking confirmed! Keep those steps low and your energy high. It's smart planning, just like your consistent jogging!</p>
+                </div>
+            `;
+
+            logBooking(`<span class="text-success">Booked ${roomId} for ${startTime}-${endTime}.</span>`);
+            handleLogicUpdate();
+        }
+
+        window.onload = function () {
+            setInitialTime();
+            init3DScene();
+            animate();
+
+
+            document.getElementById('employeeId')?.addEventListener('input', handleLogicUpdate);
+            document.getElementById('startTime')?.addEventListener('change', handleLogicUpdate);
+            document.getElementById('endTime')?.addEventListener('change', handleLogicUpdate);
+            document.getElementById('groupSize')?.addEventListener('input', handleLogicUpdate);
+            document.getElementById('confirmBookingBtn')?.addEventListener('click', handleBooking);
+
+            window.confirmBooking = confirmBooking;
+
+            handleLogicUpdate();
+        }
+    </script>
+</body>
+
+</html>
