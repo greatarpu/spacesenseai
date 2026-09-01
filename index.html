@@ -1,1300 +1,2785 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Sense AI</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClinIQ — Clinical Second Opinion & Reasoning Aid</title>
 
-    <style>
-        body {
-            font-family: "Inter", sans-serif;
-            background-color: #f7f9fc;
-            scroll-behavior: smooth;
-            margin: 0;
-            overflow: hidden;
-        }
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-        .ss-primary {
-            color: #830051;
-        }
+  <!-- Lucide -->
+  <script src="https://unpkg.com/lucide@latest"></script>
 
-        .ss-bg-primary {
-            background-color: #830051;
-        }
-
-        .ss-secondary {
-            color: #28a745;
-        }
-
-        #container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-        }
-
-        #scene-container {
-            flex-grow: 1;
-            position: relative;
-            background-color: #2c3e50;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-        }
-
-        #controls-panel {
-            width: 380px;
-            max-width: 380px;
-            min-height: 100vh;
-            background-color: #ffffff;
-            padding: 20px;
-            box-shadow: -4px 0 10px rgba(0, 0, 0, 0.1);
-            overflow-y: auto;
-            position: relative;
-        }
-
-        #tooltip {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.85);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 0.5rem;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s;
-            font-size: 0.8rem;
-            z-index: 1000;
-            white-space: nowrap;
-        }
-
-        .ai-bot-icon {
-            font-size: 4rem;
-            animation: bounce 2s infinite ease-in-out;
-        }
-
-        @keyframes bounce {
-
-            0%,
-            100% {
-                transform: translateY(0);
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: {
+              950: "#07111f",
+              900: "#0b1728",
+              800: "#10233b",
+              700: "#163554"
             }
-
-            50% {
-                transform: translateY(-5px);
-            }
+          },
+          boxShadow: {
+            soft: "0 8px 30px rgba(15,23,42,.07)"
+          }
         }
+      }
+    }
+  </script>
 
-        .form-control,
-        .form-select,
-        .btn {
-            border-radius: 0.5rem !important;
-        }
+  <style>
+    * { box-sizing: border-box; }
 
-        .btn-success {
-            background-color: #28a745;
-            border-color: #28a745;
-        }
+    html {
+      scroll-behavior: smooth;
+    }
 
-        .btn-success:hover {
-            background-color: #1e7e34;
-            border-color: #1c7430;
-        }
+    body {
+      margin: 0;
+      background: #f4f7fb;
+      color: #172033;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+        BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
 
-        .status-message-text {
-            min-height: 80px;
-            padding: 15px;
-            border-radius: 0.5rem;
-            margin-top: 1rem;
-            font-weight: 500;
-        }
-    </style>
+    .glass {
+      background: rgba(255,255,255,.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e4e9f0;
+      border-radius: 14px;
+      box-shadow: 0 5px 22px rgba(15,23,42,.045);
+    }
+
+    .scrollbar::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    .scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 20px;
+    }
+
+    .agent-line {
+      position: relative;
+    }
+
+    .agent-line::before {
+      content: "";
+      position: absolute;
+      left: 7px;
+      top: 27px;
+      bottom: -17px;
+      width: 1px;
+      background: #dbe3ed;
+    }
+
+    .agent-line:last-child::before {
+      display: none;
+    }
+
+    .pulse-dot {
+      animation: pulse 1.4s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.25); opacity: .55; }
+    }
+
+    .fade-in {
+      animation: fadeIn .35s ease both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .slide-up {
+      animation: slideUp .4s ease both;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .bar {
+      height: 9px;
+      border-radius: 999px;
+      background: #e8edf3;
+      overflow: hidden;
+    }
+
+    .bar > div {
+      height: 100%;
+      border-radius: inherit;
+      transition: width .7s ease;
+    }
+
+    .severity-urgent {
+      border-left: 4px solid #dc2626;
+      background: #fff7f7;
+    }
+
+    .severity-warning {
+      border-left: 4px solid #d97706;
+      background: #fffbeb;
+    }
+
+    .severity-info {
+      border-left: 4px solid #2563eb;
+      background: #f5f9ff;
+    }
+
+    .severity-success {
+      border-left: 4px solid #16a34a;
+      background: #f3fcf6;
+    }
+
+    .tab-active {
+      color: #0f5eb7;
+      border-bottom: 2px solid #0f5eb7;
+    }
+
+    .disabled {
+      opacity: .5;
+      pointer-events: none;
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    .modal-bg {
+      background: rgba(7,17,31,.58);
+      backdrop-filter: blur(5px);
+    }
+
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+
+      body {
+        background: white;
+      }
+
+      .print-card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-    <div id="container">
-        <div id="scene-container">
-            <div id="tooltip"></div>
+<!-- =========================================================
+     APPLICATION SHELL
+========================================================= -->
+
+<div id="app">
+
+  <!-- TOP NAV -->
+  <header class="no-print sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <div class="max-w-[1800px] mx-auto px-4 lg:px-6">
+
+      <div class="h-[68px] flex items-center justify-between gap-4">
+
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-xl bg-navy-900 flex items-center justify-center text-white shadow-sm">
+            <i data-lucide="brain-circuit" class="w-5 h-5"></i>
+          </div>
+
+          <div class="min-w-0">
+            <div class="font-bold text-slate-900 tracking-tight">
+              ClinIQ
+              <span class="text-xs font-medium text-blue-600 ml-1">REASONING AID</span>
+            </div>
+            <div class="text-[11px] text-slate-500 truncate">
+              Clinical Second-Opinion & Safety Intelligence
+            </div>
+          </div>
         </div>
 
-        <div id="controls-panel">
-            <h1 class="ss-primary fw-bold mb-3 border-bottom pb-2">Space Sense AI</h1>
-            <p class="small text-muted mb-4">
-                The camera view is restricted to a **top-down map perspective**. Select your workstation to find the
-                **nearest available meeting room**.
+        <!-- MAIN TABS -->
+        <nav class="hidden md:flex h-full items-center gap-7">
+          <button
+            id="tab-copilot"
+            onclick="switchTab('copilot')"
+            class="tab-active h-full text-sm font-semibold flex items-center gap-2">
+            <i data-lucide="stethoscope" class="w-4 h-4"></i>
+            Clinical Copilot
+          </button>
+
+          <button
+            id="tab-intelligence"
+            onclick="switchTab('intelligence')"
+            class="h-full text-sm font-semibold text-slate-500 flex items-center gap-2">
+            <i data-lucide="chart-no-axes-combined" class="w-4 h-4"></i>
+            Enterprise Intelligence
+          </button>
+        </nav>
+
+        <div class="flex items-center gap-2">
+          <span class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
+            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+            Demo Environment
+          </span>
+
+          <button
+            onclick="showAbout()"
+            class="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500"
+            title="About">
+            <i data-lucide="info" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- MOBILE TABS -->
+      <div class="md:hidden flex gap-6 h-11">
+        <button id="mobile-tab-copilot"
+          onclick="switchTab('copilot')"
+          class="tab-active text-xs font-semibold">
+          Clinical Copilot
+        </button>
+        <button id="mobile-tab-intelligence"
+          onclick="switchTab('intelligence')"
+          class="text-slate-500 text-xs font-semibold">
+          Enterprise Intelligence
+        </button>
+      </div>
+    </div>
+  </header>
+
+
+  <!-- =======================================================
+       COPILOT VIEW
+  ======================================================== -->
+
+  <main id="copilot-view" class="max-w-[1800px] mx-auto px-4 lg:px-6 py-5">
+
+    <!-- DISCLAIMER -->
+    <div class="no-print mb-4 flex gap-3 items-start rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+      <i data-lucide="shield-check" class="w-5 h-5 text-blue-600 mt-0.5 shrink-0"></i>
+      <div class="text-xs text-blue-900">
+        <strong>Clinical decision-support demo:</strong>
+        This prototype augments clinician reasoning and does not diagnose, prescribe,
+        or replace professional judgment. All AI reasoning, citations, and patient data
+        below are simulated.
+      </div>
+    </div>
+
+
+    <!-- CASE INGESTION -->
+    <section class="card p-4 mb-5 no-print">
+
+      <div class="flex flex-col xl:flex-row xl:items-end gap-4">
+
+        <div class="xl:w-[310px]">
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+            Select Clinical Case
+          </label>
+
+          <select
+            id="case-selector"
+            onchange="loadCase(this.value)"
+            class="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-100">
+          </select>
+        </div>
+
+        <div class="flex-1 min-w-0">
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+            Clinical Narrative
+          </label>
+
+          <textarea
+            id="case-narrative"
+            rows="2"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm leading-6 focus:outline-none focus:ring-2 focus:ring-blue-100"></textarea>
+        </div>
+
+        <button
+          id="run-btn"
+          onclick="runEvaluation()"
+          class="h-11 px-5 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm flex items-center justify-center gap-2 whitespace-nowrap shadow-sm transition">
+          <i data-lucide="play" class="w-4 h-4"></i>
+          Run Multi-Agent Evaluation
+        </button>
+
+      </div>
+
+      <!-- Processing -->
+      <div id="processing-panel" class="hidden mt-4 border-t border-slate-100 pt-4">
+
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-semibold text-slate-600">
+            Multi-agent clinical reasoning pipeline
+          </span>
+
+          <span id="processing-percent" class="text-xs font-bold text-blue-600">
+            0%
+          </span>
+        </div>
+
+        <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden mb-4">
+          <div id="processing-bar"
+               class="h-full bg-blue-600 rounded-full transition-all duration-500"
+               style="width:0%">
+          </div>
+        </div>
+
+        <div id="processing-steps" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-2"></div>
+      </div>
+
+    </section>
+
+
+    <!-- CASE HEADER -->
+    <section id="case-header" class="mb-5 fade-in">
+      <!-- dynamically populated -->
+    </section>
+
+
+    <!-- THREE COLUMN WORKSPACE -->
+    <section class="grid grid-cols-1 xl:grid-cols-[300px_minmax(500px,1fr)_350px] gap-5">
+
+      <!-- ===================================================
+           LEFT: TIMELINE
+      ==================================================== -->
+      <aside class="space-y-5">
+
+        <div class="card overflow-hidden">
+
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <div class="text-sm font-bold text-slate-900">Case Timeline</div>
+              <div class="text-[11px] text-slate-500">Longitudinal clinical context</div>
+            </div>
+            <i data-lucide="timeline" class="w-4 h-4 text-slate-400"></i>
+          </div>
+
+          <div id="timeline" class="p-4 scrollbar max-h-[520px] overflow-auto"></div>
+
+        </div>
+
+
+        <div class="card">
+
+          <div class="px-4 py-3 border-b border-slate-100">
+            <div class="text-sm font-bold text-slate-900">Entity Extraction</div>
+            <div class="text-[11px] text-slate-500">
+              Structured signals detected from narrative
+            </div>
+          </div>
+
+          <div id="entities" class="p-4 space-y-4"></div>
+
+        </div>
+
+
+        <div class="card">
+
+          <div class="px-4 py-3 border-b border-slate-100">
+            <div class="text-sm font-bold">Clinical Snapshot</div>
+          </div>
+
+          <div id="snapshot" class="p-4 grid grid-cols-2 gap-2"></div>
+
+        </div>
+
+      </aside>
+
+
+      <!-- ===================================================
+           CENTER: AGENTS
+      ==================================================== -->
+      <section class="space-y-5">
+
+        <!-- Agent status -->
+        <div class="card p-3 no-print">
+          <div class="flex items-center gap-3">
+            <div id="agent-status-dot"
+              class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+
+            <div class="flex-1">
+              <div id="agent-status-title" class="text-xs font-bold text-slate-800">
+                Multi-agent synthesis ready
+              </div>
+              <div id="agent-status-subtitle" class="text-[11px] text-slate-500">
+                Four independent reasoning agents will evaluate the case.
+              </div>
+            </div>
+
+            <div class="text-[10px] font-semibold text-slate-400">
+              MOCK AI ENGINE
+            </div>
+          </div>
+        </div>
+
+
+        <!-- Contradiction Radar -->
+        <article class="card overflow-hidden">
+
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between cursor-pointer"
+               onclick="toggleCard('contradiction-body','contradiction-chevron')">
+
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+                <i data-lucide="radar" class="w-4 h-4"></i>
+              </div>
+
+              <div>
+                <h2 class="font-bold text-sm">Contradiction & Conflict Radar</h2>
+                <p class="text-[11px] text-slate-500">
+                  Findings that challenge the current working hypothesis
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span id="contradiction-count"
+                    class="text-[10px] px-2 py-1 rounded-full bg-amber-100 text-amber-700 font-bold"></span>
+              <i id="contradiction-chevron" data-lucide="chevron-up" class="w-4 h-4 text-slate-400"></i>
+            </div>
+          </div>
+
+          <div id="contradiction-body" class="p-4 space-y-3"></div>
+
+        </article>
+
+
+        <!-- Devil's Advocate -->
+        <article class="card overflow-hidden">
+
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between cursor-pointer"
+               onclick="toggleCard('bias-body','bias-chevron')">
+
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-lg bg-orange-50 text-orange-700 flex items-center justify-center">
+                <i data-lucide="scale" class="w-4 h-4"></i>
+              </div>
+
+              <div>
+                <h2 class="font-bold text-sm">Devil's Advocate / Bias Buster</h2>
+                <p class="text-[11px] text-slate-500">
+                  Socratic challenges to premature diagnostic closure
+                </p>
+              </div>
+            </div>
+
+            <i id="bias-chevron" data-lucide="chevron-up" class="w-4 h-4 text-slate-400"></i>
+          </div>
+
+          <div id="bias-body" class="p-4 space-y-3"></div>
+
+        </article>
+
+
+        <!-- Safety Sentinel -->
+        <article class="card overflow-hidden">
+
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between cursor-pointer"
+               onclick="toggleCard('safety-body','safety-chevron')">
+
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-lg bg-red-50 text-red-700 flex items-center justify-center">
+                <i data-lucide="shield-alert" class="w-4 h-4"></i>
+              </div>
+
+              <div>
+                <h2 class="font-bold text-sm">Safety & Red-Flag Sentinel</h2>
+                <p class="text-[11px] text-slate-500">
+                  Acute threats, missing safety checks and escalation triggers
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span id="safety-count"
+                    class="text-[10px] px-2 py-1 rounded-full bg-red-100 text-red-700 font-bold"></span>
+              <i id="safety-chevron" data-lucide="chevron-up" class="w-4 h-4 text-slate-400"></i>
+            </div>
+          </div>
+
+          <div id="safety-body" class="p-4 space-y-3"></div>
+
+        </article>
+
+
+        <!-- Differentials -->
+        <article class="card overflow-hidden">
+
+          <div class="px-4 py-3 border-b border-slate-100">
+
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
+                <i data-lucide="list-filter" class="w-4 h-4"></i>
+              </div>
+
+              <div>
+                <h2 class="font-bold text-sm">Ranked Alternative Differentials</h2>
+                <p class="text-[11px] text-slate-500">
+                  Common diagnoses vs. rare-but-critical alternatives
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+          <div id="differentials" class="p-4 space-y-3"></div>
+
+        </article>
+
+      </section>
+
+
+      <!-- ===================================================
+           RIGHT: EVIDENCE
+      ==================================================== -->
+      <aside class="space-y-5">
+
+        <!-- Recommended next steps -->
+        <div class="card overflow-hidden">
+
+          <div class="px-4 py-3 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <i data-lucide="clipboard-check" class="w-4 h-4 text-blue-600"></i>
+              <div>
+                <div class="text-sm font-bold">Recommended Next Steps</div>
+                <div class="text-[11px] text-slate-500">Mock decision-support checklist</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="next-steps" class="p-4 space-y-2"></div>
+
+        </div>
+
+
+        <!-- Evidence -->
+        <div class="card overflow-hidden">
+
+          <div class="px-4 py-3 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <i data-lucide="book-open-check" class="w-4 h-4 text-blue-600"></i>
+              <div>
+                <div class="text-sm font-bold">Evidence Grounding</div>
+                <div class="text-[11px] text-slate-500">
+                  Simulated references for hackathon demonstration
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="evidence" class="p-4 space-y-3"></div>
+
+        </div>
+
+
+        <!-- Feedback -->
+        <div class="card overflow-hidden no-print">
+
+          <div class="px-4 py-3 border-b border-slate-100">
+            <div class="text-sm font-bold">Clinician Feedback</div>
+            <div class="text-[11px] text-slate-500">
+              Capture human-in-the-loop validation
+            </div>
+          </div>
+
+          <div class="p-4 space-y-2">
+
+            <button onclick="feedback('acknowledge')"
+              class="w-full h-9 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold flex items-center justify-center gap-2">
+              <i data-lucide="check-circle" class="w-4 h-4"></i>
+              Acknowledge Finding
+            </button>
+
+            <button onclick="feedback('dismiss')"
+              class="w-full h-9 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold flex items-center justify-center gap-2">
+              <i data-lucide="x-circle" class="w-4 h-4"></i>
+              Dismiss / Not Relevant
+            </button>
+
+            <button onclick="feedback('order')"
+              class="w-full h-9 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center gap-2">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i>
+              Add to Order Set
+            </button>
+
+          </div>
+
+          <div id="feedback-message"
+            class="hidden mx-4 mb-4 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+          </div>
+
+        </div>
+
+
+        <!-- Report -->
+        <button
+          onclick="generateReport()"
+          class="no-print w-full h-11 rounded-lg bg-navy-900 hover:bg-navy-800 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-sm">
+          <i data-lucide="file-text" class="w-4 h-4"></i>
+          Generate Clinical Reasoning Summary
+        </button>
+
+      </aside>
+
+    </section>
+
+  </main>
+
+
+  <!-- =======================================================
+       INTELLIGENCE VIEW
+  ======================================================== -->
+
+  <main id="intelligence-view" class="hidden max-w-[1800px] mx-auto px-4 lg:px-6 py-5">
+
+    <div class="mb-5">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+
+        <div>
+          <div class="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
+            Enterprise Medical Intelligence
+          </div>
+          <h1 class="text-2xl font-bold tracking-tight text-slate-900">
+            Continuous Learning Hub
+          </h1>
+          <p class="text-sm text-slate-500 mt-1">
+            De-identified reasoning patterns aggregated across evaluated demo cases.
+          </p>
+        </div>
+
+        <div class="flex gap-2">
+          <span class="px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs text-slate-600">
+            <strong id="evaluated-count">3</strong> evaluated cases
+          </span>
+
+          <span class="px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100 text-xs text-emerald-700">
+            No identifiable PHI
+          </span>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- KPI CARDS -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+
+      <div class="card p-4">
+        <div class="flex justify-between">
+          <div class="text-xs text-slate-500">Contradictions surfaced</div>
+          <i data-lucide="triangle-alert" class="w-4 h-4 text-amber-500"></i>
+        </div>
+        <div id="kpi-contradictions" class="text-2xl font-bold mt-2">8</div>
+        <div class="text-[11px] text-emerald-600 mt-1">↑ 21% vs baseline demo</div>
+      </div>
+
+      <div class="card p-4">
+        <div class="flex justify-between">
+          <div class="text-xs text-slate-500">Safety signals flagged</div>
+          <i data-lucide="shield-alert" class="w-4 h-4 text-red-500"></i>
+        </div>
+        <div id="kpi-safety" class="text-2xl font-bold mt-2">7</div>
+        <div class="text-[11px] text-slate-500 mt-1">Across 3 simulated cases</div>
+      </div>
+
+      <div class="card p-4">
+        <div class="flex justify-between">
+          <div class="text-xs text-slate-500">Rare alternatives</div>
+          <i data-lucide="sparkles" class="w-4 h-4 text-blue-500"></i>
+        </div>
+        <div class="text-2xl font-bold mt-2">5</div>
+        <div class="text-[11px] text-blue-600 mt-1">Potential signal candidates</div>
+      </div>
+
+      <div class="card p-4">
+        <div class="flex justify-between">
+          <div class="text-xs text-slate-500">Reasoning confidence</div>
+          <i data-lucide="activity" class="w-4 h-4 text-emerald-500"></i>
+        </div>
+        <div class="text-2xl font-bold mt-2">86%</div>
+        <div class="text-[11px] text-slate-500 mt-1">Mock aggregate score</div>
+      </div>
+
+    </section>
+
+
+    <!-- ANALYTICS GRID -->
+    <section class="grid lg:grid-cols-2 gap-5">
+
+      <!-- Bias breakdown -->
+      <div class="card p-5">
+
+        <div class="flex justify-between items-start mb-5">
+          <div>
+            <h2 class="font-bold text-sm">Top Diagnostic Blind Spots</h2>
+            <p class="text-[11px] text-slate-500 mt-1">
+              Recurring reasoning patterns identified by the demo engine
+            </p>
+          </div>
+
+          <span class="text-[10px] px-2 py-1 rounded-full bg-amber-50 text-amber-700">
+            30-day simulation
+          </span>
+        </div>
+
+        <div class="space-y-5">
+
+          <div>
+            <div class="flex justify-between text-xs mb-1.5">
+              <span>Premature closure</span>
+              <strong>38%</strong>
+            </div>
+            <div class="bar">
+              <div style="width:38%;background:#d97706"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1.5">
+              <span>Anchoring bias</span>
+              <strong>29%</strong>
+            </div>
+            <div class="bar">
+              <div style="width:29%;background:#ea580c"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1.5">
+              <span>Availability bias</span>
+              <strong>18%</strong>
+            </div>
+            <div class="bar">
+              <div style="width:18%;background:#2563eb"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1.5">
+              <span>Confirmation bias</span>
+              <strong>15%</strong>
+            </div>
+            <div class="bar">
+              <div style="width:15%;background:#64748b"></div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- Rare disease -->
+      <div class="card p-5">
+
+        <div class="flex justify-between items-start mb-5">
+          <div>
+            <h2 class="font-bold text-sm">Rare Disease Signal Tracking</h2>
+            <p class="text-[11px] text-slate-500 mt-1">
+              Early alternative hypotheses flagged by safety agents
+            </p>
+          </div>
+
+          <i data-lucide="activity" class="w-4 h-4 text-blue-600"></i>
+        </div>
+
+        <div class="space-y-4">
+
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+              <i data-lucide="heart-pulse" class="w-4 h-4"></i>
+            </div>
+            <div class="flex-1">
+              <div class="flex justify-between text-xs">
+                <span class="font-semibold">Aortic / vascular emergency</span>
+                <span>2</span>
+              </div>
+              <div class="bar mt-1.5">
+                <div style="width:66%;background:#dc2626"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <i data-lucide="brain" class="w-4 h-4"></i>
+            </div>
+            <div class="flex-1">
+              <div class="flex justify-between text-xs">
+                <span class="font-semibold">Autoimmune neurological</span>
+                <span>2</span>
+              </div>
+              <div class="bar mt-1.5">
+                <div style="width:66%;background:#2563eb"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+              <i data-lucide="dna" class="w-4 h-4"></i>
+            </div>
+            <div class="flex-1">
+              <div class="flex justify-between text-xs">
+                <span class="font-semibold">Paraneoplastic syndromes</span>
+                <span>1</span>
+              </div>
+              <div class="bar mt-1.5">
+                <div style="width:33%;background:#7c3aed"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- Evidence generation -->
+      <div class="card p-5 lg:col-span-2">
+
+        <div class="flex items-start justify-between mb-5">
+          <div>
+            <h2 class="font-bold text-sm">Evidence Generation Opportunities</h2>
+            <p class="text-[11px] text-slate-500 mt-1">
+              Examples of how aggregated ambiguity could inform Medical Affairs,
+              Patient Safety, Clinical Development and R&D.
+            </p>
+          </div>
+
+          <div class="px-2 py-1 rounded bg-blue-50 text-blue-700 text-[10px] font-semibold">
+            STRATEGIC INSIGHT
+          </div>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-4">
+
+          <div class="rounded-xl border border-slate-200 p-4 hover:border-blue-200 transition">
+            <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+              <i data-lucide="flask-conical" class="w-4 h-4"></i>
+            </div>
+            <h3 class="text-xs font-bold">Clinical Trial Topic</h3>
+            <p class="text-xs text-slate-500 leading-5 mt-2">
+              Study diagnostic trajectories in patients with persistent fatigue
+              where autoimmune signals initially fall below conventional thresholds.
+            </p>
+            <button class="mt-3 text-[11px] font-semibold text-blue-600">
+              Explore opportunity →
+            </button>
+          </div>
+
+          <div class="rounded-xl border border-slate-200 p-4 hover:border-blue-200 transition">
+            <div class="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center mb-3">
+              <i data-lucide="shield-plus" class="w-4 h-4"></i>
+            </div>
+            <h3 class="text-xs font-bold">Safety Guideline Update</h3>
+            <p class="text-xs text-slate-500 leading-5 mt-2">
+              Repeated omission of high-risk vascular differentials suggests
+              an opportunity for standardized chest-pain safety prompts.
+            </p>
+            <button class="mt-3 text-[11px] font-semibold text-blue-600">
+              Explore opportunity →
+            </button>
+          </div>
+
+          <div class="rounded-xl border border-slate-200 p-4 hover:border-blue-200 transition">
+            <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center mb-3">
+              <i data-lucide="microscope" class="w-4 h-4"></i>
+            </div>
+            <h3 class="text-xs font-bold">R&D Signal</h3>
+            <p class="text-xs text-slate-500 leading-5 mt-2">
+              Recurrent neuropsychiatric presentations with atypical features
+              could justify structured rare-disease signal surveillance.
+            </p>
+            <button class="mt-3 text-[11px] font-semibold text-blue-600">
+              Explore opportunity →
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- Bias heatmap -->
+      <div class="card p-5 lg:col-span-2">
+
+        <div class="flex items-center justify-between mb-5">
+          <div>
+            <h2 class="font-bold text-sm">Reasoning Gap Heatmap</h2>
+            <p class="text-[11px] text-slate-500 mt-1">
+              Simulated distribution by presentation type
+            </p>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-slate-400 border-b border-slate-100">
+                <th class="pb-3 font-medium">Presentation</th>
+                <th class="pb-3 font-medium">Anchoring</th>
+                <th class="pb-3 font-medium">Premature Closure</th>
+                <th class="pb-3 font-medium">Contradiction</th>
+                <th class="pb-3 font-medium">Rare Signal</th>
+              </tr>
+            </thead>
+
+            <tbody class="divide-y divide-slate-100">
+              <tr>
+                <td class="py-3 font-semibold">Chest pain</td>
+                <td><span class="px-2 py-1 rounded bg-orange-100 text-orange-700">High</span></td>
+                <td><span class="px-2 py-1 rounded bg-red-100 text-red-700">High</span></td>
+                <td><span class="px-2 py-1 rounded bg-amber-100 text-amber-700">Medium</span></td>
+                <td><span class="px-2 py-1 rounded bg-blue-100 text-blue-700">High</span></td>
+              </tr>
+
+              <tr>
+                <td class="py-3 font-semibold">Fatigue / arthralgia</td>
+                <td><span class="px-2 py-1 rounded bg-red-100 text-red-700">High</span></td>
+                <td><span class="px-2 py-1 rounded bg-orange-100 text-orange-700">High</span></td>
+                <td><span class="px-2 py-1 rounded bg-amber-100 text-amber-700">Medium</span></td>
+                <td><span class="px-2 py-1 rounded bg-blue-100 text-blue-700">High</span></td>
+              </tr>
+
+              <tr>
+                <td class="py-3 font-semibold">Confusion</td>
+                <td><span class="px-2 py-1 rounded bg-orange-100 text-orange-700">High</span></td>
+                <td><span class="px-2 py-1 rounded bg-red-100 text-red-700">High</span></td>
+                <td><span class="px-2 py-1 rounded bg-red-100 text-red-700">High</span></td>
+                <td><span class="px-2 py-1 rounded bg-purple-100 text-purple-700">Critical</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- =======================================================
+       REPORT MODAL
+  ======================================================== -->
+
+  <div id="report-modal"
+       class="hidden fixed inset-0 z-50 modal-bg flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl">
+
+      <div class="no-print px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div>
+          <div class="font-bold text-slate-900">Clinical Reasoning Summary</div>
+          <div class="text-[11px] text-slate-500">Demo-generated report</div>
+        </div>
+
+        <div class="flex gap-2">
+          <button onclick="window.print()"
+            class="h-9 px-3 rounded-lg bg-navy-900 text-white text-xs font-semibold flex items-center gap-2">
+            <i data-lucide="printer" class="w-4 h-4"></i>
+            Print / PDF
+          </button>
+
+          <button onclick="closeReport()"
+            class="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <div id="report-content" class="p-6 overflow-auto max-h-[calc(90vh-70px)] print-card"></div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =======================================================
+       ABOUT MODAL
+  ======================================================== -->
+
+  <div id="about-modal"
+       class="hidden fixed inset-0 z-50 modal-bg flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-navy-900 text-white flex items-center justify-center">
+          <i data-lucide="brain-circuit" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h2 class="font-bold">ClinIQ</h2>
+          <p class="text-xs text-slate-500">Hackathon prototype</p>
+        </div>
+      </div>
+
+      <p class="text-sm text-slate-600 leading-6">
+        ClinIQ demonstrates a multi-agent reasoning architecture designed to
+        reduce diagnostic anchoring by independently examining contradictions,
+        cognitive bias, safety risks, alternative hypotheses and evidence.
+      </p>
+
+      <div class="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-100 text-xs text-amber-800">
+        <strong>Important:</strong>
+        This is a simulated software demonstration. The clinical cases,
+        reasoning outputs and evidence references are synthetic and must not
+        be used to make real clinical decisions.
+      </div>
+
+      <button onclick="document.getElementById('about-modal').classList.add('hidden')"
+        class="mt-5 w-full h-10 rounded-lg bg-navy-900 text-white text-sm font-semibold">
+        Close
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- TOAST -->
+  <div id="toast"
+       class="hidden fixed right-5 bottom-5 z-[60] bg-slate-900 text-white rounded-xl px-4 py-3 shadow-xl text-xs font-medium">
+  </div>
+
+</div>
+
+
+<script>
+/* ==========================================================
+   CLINIQ MOCK AI ENGINE
+========================================================== */
+
+const CASES = {
+
+  chest: {
+    id: "chest",
+    title: "Atypical Chest Pain",
+    subtitle: "Anchoring on GERD / musculoskeletal pain",
+    patient: {
+      age: 48,
+      sex: "Male",
+      setting: "Emergency / acute care",
+      acuity: "High"
+    },
+
+    narrative:
+      "48-year-old man presents with 10 hours of intermittent central chest discomfort described as pressure with occasional sharp episodes. Pain is worse when lying flat and partially improved after antacid use. He reports mild shortness of breath and one episode of diaphoresis. No known coronary disease. Recent 7-hour car journey 4 days ago. HR 104, BP 146/88, RR 22, SpO2 94% on room air. ECG without ST elevation. Initial troponin is within reference range.",
+
+    working:
+      "GERD / musculoskeletal chest pain",
+
+    timeline: [
+      {
+        time: "4 days ago",
+        title: "Recent prolonged travel",
+        detail: "7-hour car journey",
+        type: "risk"
+      },
+      {
+        time: "10 hours ago",
+        title: "Chest discomfort begins",
+        detail: "Intermittent central pressure and sharp episodes",
+        type: "symptom"
+      },
+      {
+        time: "Current",
+        title: "Initial vitals",
+        detail: "HR 104 · RR 22 · SpO₂ 94% · BP 146/88",
+        type: "vital"
+      },
+      {
+        time: "Current",
+        title: "Initial investigations",
+        detail: "ECG without ST elevation · initial troponin normal",
+        type: "lab"
+      },
+      {
+        time: "Current",
+        title: "Medication response",
+        detail: "Partial improvement after antacid",
+        type: "med"
+      }
+    ],
+
+    entities: {
+      symptoms: ["Chest pressure", "Dyspnea", "Diaphoresis"],
+      risks: ["Recent prolonged travel", "Tachycardia"],
+      biomarkers: ["Initial troponin normal"],
+      vitals: ["HR 104", "RR 22", "SpO₂ 94%"]
+    },
+
+    snapshot: [
+      ["HR", "104", "amber"],
+      ["SpO₂", "94%", "red"],
+      ["RR", "22", "amber"],
+      ["Troponin", "Normal", "green"]
+    ],
+
+    contradictions: [
+      {
+        severity: "warning",
+        title: "Partial antacid response is not diagnostic",
+        detail:
+          "Symptom improvement after antacid may support reflux but does not adequately exclude cardiopulmonary causes.",
+        evidence: "Weak discriminator"
+      },
+      {
+        severity: "warning",
+        title: "Tachycardia + mild hypoxemia",
+        detail:
+          "HR 104 and SpO₂ 94% create tension with an uncomplicated musculoskeletal/GERD explanation.",
+        evidence: "Clinical contradiction"
+      },
+      {
+        severity: "urgent",
+        title: "Recent prolonged immobility",
+        detail:
+          "A 7-hour journey introduces a thromboembolic risk context that should not be ignored.",
+        evidence: "Safety signal"
+      }
+    ],
+
+    biases: [
+      {
+        title: "Anchoring",
+        question:
+          "If the antacid response were removed from the case, would GERD still be the leading explanation?",
+        severity: "High"
+      },
+      {
+        title: "Premature closure",
+        question:
+          "What additional finding would be required before safely closing the differential?",
+        severity: "High"
+      },
+      {
+        title: "Confirmation bias",
+        question:
+          "Are the normal initial ECG/troponin being interpreted as exclusionary rather than time-dependent evidence?",
+        severity: "Moderate"
+      }
+    ],
+
+    safety: [
+      {
+        title: "Pulmonary embolism remains a safety consideration",
+        detail:
+          "Recent prolonged travel, tachycardia, dyspnea and borderline oxygen saturation warrant structured risk assessment.",
+        action: "Urgent risk stratification"
+      },
+      {
+        title: "Aortic pathology should remain in the safety differential",
+        detail:
+          "The clinical narrative should explicitly assess abruptness, maximal-at-onset pain, pulse/BP asymmetry and neurologic symptoms where relevant.",
+        action: "Targeted history / examination"
+      },
+      {
+        title: "Single normal troponin is not a universal rule-out",
+        detail:
+          "Interpretation depends on assay, timing, serial testing strategy and overall clinical risk.",
+        action: "Follow local chest-pain pathway"
+      }
+    ],
+
+    differentials: [
+      {
+        rank: 1,
+        name: "Acute coronary syndrome",
+        category: "Common / important",
+        score: 78,
+        rationale: "Pressure-type chest symptoms with autonomic symptom; early biomarkers may be nondiagnostic.",
+        color: "blue"
+      },
+      {
+        rank: 2,
+        name: "Pulmonary embolism",
+        category: "Rare-but-critical",
+        score: 74,
+        rationale: "Recent prolonged travel, tachycardia, dyspnea and borderline oxygenation create a meaningful alternative.",
+        color: "red"
+      },
+      {
+        rank: 3,
+        name: "GERD / esophageal source",
+        category: "Common",
+        score: 63,
+        rationale: "Positional component and partial antacid response support it, but neither finding is specific.",
+        color: "blue"
+      },
+      {
+        rank: 4,
+        name: "Aortic syndrome",
+        category: "Rare-but-critical",
+        score: 38,
+        rationale: "Lower probability based on the available narrative, but high consequence if missed.",
+        color: "red"
+      },
+      {
+        rank: 5,
+        name: "Musculoskeletal chest pain",
+        category: "Common",
+        score: 31,
+        rationale: "Possible, but the systemic/cardiorespiratory features make isolated musculoskeletal pain less satisfying.",
+        color: "blue"
+      }
+    ],
+
+    nextSteps: [
+      "Perform structured cardiopulmonary risk assessment.",
+      "Reassess vital signs and oxygen saturation.",
+      "Apply an appropriate PE risk-stratification pathway when clinically indicated.",
+      "Consider serial cardiac biomarker strategy according to local protocol.",
+      "Document targeted red-flag history for aortic pathology.",
+      "Reconcile the working diagnosis against all contradictory findings."
+    ],
+
+    evidence: [
+      {
+        title: "Chest pain evaluation",
+        source: "Mock guideline reference",
+        strength: "High",
+        url: "https://pubmed.ncbi.nlm.nih.gov/?term=chest+pain+evaluation"
+      },
+      {
+        title: "Pulmonary embolism diagnostic strategies",
+        source: "Mock evidence reference",
+        strength: "Moderate",
+        url: "https://pubmed.ncbi.nlm.nih.gov/?term=pulmonary+embolism+diagnosis"
+      },
+      {
+        title: "Acute coronary syndrome biomarkers",
+        source: "Mock evidence reference",
+        strength: "High",
+        url: "https://pubmed.ncbi.nlm.nih.gov/?term=acute+coronary+syndrome+troponin"
+      }
+    ]
+  },
+
+
+  fatigue: {
+    id: "fatigue",
+    title: "Persistent Fatigue & Arthralgia",
+    subtitle: "Anchoring on chronic fatigue / depression",
+    patient: {
+      age: 34,
+      sex: "Female",
+      setting: "Outpatient / internal medicine",
+      acuity: "Moderate"
+    },
+
+    narrative:
+      "34-year-old woman with 5 months of progressive fatigue, intermittent bilateral hand and knee arthralgia, morning stiffness and difficulty concentrating. She has been treated for presumed depression with limited improvement. Reports photosensitivity and intermittent oral ulcers that she initially considered unrelated. CBC shows mild leukopenia; urinalysis demonstrates trace protein. ESR is mildly elevated. No prior autoimmune diagnosis.",
+
+    working:
+      "Chronic fatigue syndrome / depression",
+
+    timeline: [
+      {
+        time: "5 months ago",
+        title: "Fatigue begins",
+        detail: "Progressive fatigue and reduced concentration",
+        type: "symptom"
+      },
+      {
+        time: "3 months ago",
+        title: "Arthralgia develops",
+        detail: "Bilateral hands and knees with morning stiffness",
+        type: "symptom"
+      },
+      {
+        time: "6 weeks ago",
+        title: "Depression treatment",
+        detail: "Limited symptomatic improvement",
+        type: "med"
+      },
+      {
+        time: "Current",
+        title: "Systemic clues identified",
+        detail: "Photosensitivity and intermittent oral ulcers",
+        type: "risk"
+      },
+      {
+        time: "Current",
+        title: "Laboratory pattern",
+        detail: "Mild leukopenia · trace proteinuria · mildly elevated ESR",
+        type: "lab"
+      }
+    ],
+
+    entities: {
+      symptoms: ["Fatigue", "Arthralgia", "Morning stiffness", "Photosensitivity", "Oral ulcers"],
+      risks: ["Possible systemic autoimmune pattern"],
+      biomarkers: ["Leukopenia", "Trace proteinuria", "Elevated ESR"],
+      vitals: ["No acute instability documented"]
+    },
+
+    snapshot: [
+      ["Duration", "5 mo", "amber"],
+      ["Leukocytes", "Low", "amber"],
+      ["Urine protein", "Trace", "amber"],
+      ["ESR", "↑", "blue"]
+    ],
+
+    contradictions: [
+      {
+        severity: "warning",
+        title: "Systemic findings do not fit isolated depression",
+        detail:
+          "Arthralgia, photosensitivity, oral ulcers and leukopenia create a broader systemic pattern.",
+        evidence: "Pattern conflict"
+      },
+      {
+        severity: "warning",
+        title: "Limited response to initial treatment",
+        detail:
+          "Persistence despite treatment should trigger reassessment rather than automatic continuation of the original explanatory model.",
+        evidence: "Trajectory conflict"
+      },
+      {
+        severity: "urgent",
+        title: "Proteinuria changes the risk profile",
+        detail:
+          "Even trace urinary protein in this context may warrant clinical correlation and appropriate renal assessment.",
+        evidence: "Potential organ involvement"
+      }
+    ],
+
+    biases: [
+      {
+        title: "Diagnostic overshadowing",
+        question:
+          "Are psychological symptoms being used to explain objective laboratory and systemic findings?",
+        severity: "High"
+      },
+      {
+        title: "Anchoring",
+        question:
+          "What diagnosis could unify fatigue, arthralgia, mucosal symptoms, photosensitivity and cytopenia?",
+        severity: "High"
+      },
+      {
+        title: "Fragmentation",
+        question:
+          "Would these symptoms look more concerning if represented as one longitudinal pattern rather than separate complaints?",
+        severity: "Moderate"
+      }
+    ],
+
+    safety: [
+      {
+        title: "Possible systemic autoimmune disease",
+        detail:
+          "The combination of constitutional, musculoskeletal, mucocutaneous and hematologic findings warrants clinician-directed evaluation.",
+        action: "Reassess systemic differential"
+      },
+      {
+        title: "Potential renal involvement",
+        detail:
+          "Urinary findings should be interpreted in clinical context and followed according to the appropriate pathway.",
+        action: "Review renal assessment"
+      }
+    ],
+
+    differentials: [
+      {
+        rank: 1,
+        name: "Systemic lupus erythematosus / connective-tissue disease",
+        category: "Important alternative",
+        score: 82,
+        rationale: "Multisystem symptom pattern involving constitutional, musculoskeletal, mucocutaneous and hematologic features.",
+        color: "blue"
+      },
+      {
+        rank: 2,
+        name: "Inflammatory arthritis",
+        category: "Common / important",
+        score: 65,
+        rationale: "Morning stiffness and inflammatory joint symptoms warrant consideration.",
+        color: "blue"
+      },
+      {
+        rank: 3,
+        name: "Depression / chronic fatigue",
+        category: "Current working hypothesis",
+        score: 43,
+        rationale: "May coexist but does not fully explain the objective and systemic clues.",
+        color: "blue"
+      },
+      {
+        rank: 4,
+        name: "Other systemic autoimmune disease",
+        category: "Rare / alternative",
+        score: 36,
+        rationale: "Overlap syndromes and other connective-tissue diseases may present with mixed features.",
+        color: "red"
+      }
+    ],
+
+    nextSteps: [
+      "Reassess the longitudinal symptom pattern.",
+      "Review CBC and urine findings in clinical context.",
+      "Consider clinician-directed autoimmune evaluation based on examination and pretest probability.",
+      "Assess for additional organ-system involvement.",
+      "Avoid treating the initial psychiatric explanation as exclusive.",
+      "Document the differential and rationale for any additional investigations."
+    ],
+
+    evidence: [
+      {
+        title: "Systemic autoimmune disease recognition",
+        source: "Mock evidence reference",
+        strength: "Moderate",
+        url: "https://pubmed.ncbi.nlm.nih.gov/?term=systemic+lupus+erythematosus+early+recognition"
+      },
+      {
+        title: "SLE classification and clinical features",
+        source: "Mock guideline reference",
+        strength: "High",
+        url: "https://pubmed.ncbi.nlm.nih.gov/?term=systemic+lupus+classification+criteria"
+      }
+    ]
+  },
+
+
+  neuro: {
+    id: "neuro",
+    title: "Neurological / Confusion Presentation",
+    subtitle: "Anchoring on delirium / UTI",
+    patient: {
+      age: 67,
+      sex: "Female",
+      setting: "Emergency / neurology",
+      acuity: "High"
+    },
+
+    narrative:
+      "67-year-old woman presents with 3 weeks of fluctuating confusion, short-term memory impairment and intermittent visual hallucinations. A urine culture obtained at an urgent care visit grew mixed flora and she received antibiotics for presumed UTI without meaningful improvement. Family reports new insomnia, subtle orofacial movements and episodes of marked anxiety. Basic metabolic panel is unremarkable. No fever. Neurologic examination is otherwise limited by cooperation.",
+
+    working:
+      "Delirium secondary to UTI",
+
+    timeline: [
+      {
+        time: "3 weeks ago",
+        title: "Cognitive change",
+        detail: "Fluctuating confusion and short-term memory impairment",
+        type: "symptom"
+      },
+      {
+        time: "2 weeks ago",
+        title: "Visual hallucinations",
+        detail: "Intermittent visual hallucinations reported by family",
+        type: "symptom"
+      },
+      {
+        time: "10 days ago",
+        title: "UTI treatment",
+        detail: "Antibiotics given despite mixed-flora culture",
+        type: "med"
+      },
+      {
+        time: "Current",
+        title: "New neurological clues",
+        detail: "Insomnia, anxiety and subtle orofacial movements",
+        type: "risk"
+      },
+      {
+        time: "Current",
+        title: "Basic labs",
+        detail: "Basic metabolic panel unremarkable · afebrile",
+        type: "lab"
+      }
+    ],
+
+    entities: {
+      symptoms: ["Confusion", "Memory impairment", "Visual hallucinations", "Insomnia", "Anxiety"],
+      risks: ["Subacute progression", "Abnormal movements", "No clear infectious source"],
+      biomarkers: ["No major metabolic abnormality"],
+      vitals: ["Afebrile"]
+    },
+
+    snapshot: [
+      ["Duration", "3 wk", "amber"],
+      ["Fever", "No", "green"],
+      ["BMP", "Normal", "green"],
+      ["Course", "Fluctuating", "amber"]
+    ],
+
+    contradictions: [
+      {
+        severity: "warning",
+        title: "UTI attribution lacks a strong causal anchor",
+        detail:
+          "Mixed flora plus lack of meaningful response weakens the assumption that infection explains the entire syndrome.",
+        evidence: "Diagnostic contradiction"
+      },
+      {
+        severity: "warning",
+        title: "Subacute neurological progression",
+        detail:
+          "Three weeks of cognitive change with hallucinations and abnormal movements broadens the differential considerably.",
+        evidence: "Temporal pattern"
+      },
+      {
+        severity: "urgent",
+        title: "Movement disorder features",
+        detail:
+          "New involuntary/orofacial movements in a rapidly evolving neuropsychiatric syndrome deserve focused neurologic assessment.",
+        evidence: "Neurologic safety signal"
+      }
+    ],
+
+    biases: [
+      {
+        title: "Anchoring on infection",
+        question:
+          "If the urine result were removed, what diagnosis would best explain the entire neurological syndrome?",
+        severity: "High"
+      },
+      {
+        title: "Attribution error",
+        question:
+          "Does bacteriuria necessarily explain the timing, severity and neurological features?",
+        severity: "High"
+      },
+      {
+        title: "Failure to integrate",
+        question:
+          "What diagnosis could unify cognitive, psychiatric, sleep and movement abnormalities?",
+        severity: "High"
+      }
+    ],
+
+    safety: [
+      {
+        title: "Subacute encephalopathy requires broader assessment",
+        detail:
+          "Persistent progression despite infection-directed therapy should trigger reassessment of the working diagnosis.",
+        action: "Escalate diagnostic evaluation"
+      },
+      {
+        title: "Autoimmune / paraneoplastic neurological disease",
+        detail:
+          "The syndrome contains features that can occur in immune-mediated encephalitis and other neurologic disorders.",
+        action: "Neurology-directed evaluation"
+      },
+      {
+        title: "Medication and toxic-metabolic causes",
+        detail:
+          "Medication reconciliation and structured review of metabolic/toxic causes remain essential before narrowing.",
+        action: "Complete secondary-cause screen"
+      }
+    ],
+
+    differentials: [
+      {
+        rank: 1,
+        name: "Autoimmune encephalitis",
+        category: "Rare-but-critical",
+        score: 81,
+        rationale: "Subacute neuropsychiatric syndrome with cognitive, behavioral and movement abnormalities.",
+        color: "red"
+      },
+      {
+        rank: 2,
+        name: "Delirium from systemic illness",
+        category: "Common",
+        score: 56,
+        rationale: "Fluctuation supports delirium, but the current infectious explanation is weak.",
+        color: "blue"
+      },
+      {
+        rank: 3,
+        name: "Neurodegenerative disorder",
+        category: "Important alternative",
+        score: 52,
+        rationale: "Age and cognitive symptoms warrant consideration, although the relatively rapid progression is atypical for some disorders.",
+        color: "blue"
+      },
+      {
+        rank: 4,
+        name: "Paraneoplastic neurological syndrome",
+        category: "Rare-but-critical",
+        score: 49,
+        rationale: "Subacute neurological syndromes may occasionally represent remote effects of malignancy.",
+        color: "red"
+      },
+      {
+        rank: 5,
+        name: "Medication / toxic-metabolic cause",
+        category: "Common / reversible",
+        score: 45,
+        rationale: "Must be systematically excluded before attributing symptoms to rarer causes.",
+        color: "blue"
+      }
+    ],
+
+    nextSteps: [
+      "Repeat a complete medication and exposure reconciliation.",
+      "Perform structured neurologic and cognitive examination.",
+      "Reassess whether infection adequately explains the syndrome.",
+      "Review metabolic, toxic and medication-related causes.",
+      "Consider specialist-directed evaluation for immune-mediated neurological disease where clinically appropriate.",
+      "If clinically indicated, evaluate for underlying malignancy or other systemic drivers."
+    ],
+
+    evidence: [
+      {
+        title: "Autoimmune encephalitis recognition",
+        source: "Mock evidence reference",
+        strength: "Moderate",
+        url: "https://pubmed.ncbi.nlm.nih.gov/?term=autoimmune+encephalitis+diagnosis"
+      },
+      {
+        title: "Clinical approach to encephalopathy",
+        source: "Mock guideline reference",
+        strength: "High",
+        url: "https://pubmed.ncbi.nlm.nih.gov/?term=encephalopathy+clinical+evaluation"
+      },
+      {
+        title: "Paraneoplastic neurological syndromes",
+        source: "Mock evidence reference",
+        strength: "Moderate",
+        url: "https://pubmed.ncbi.nlm.nih.gov/?term=paraneoplastic+neurological+syndrome"
+      }
+    ]
+  }
+};
+
+
+/* ==========================================================
+   STATE
+========================================================== */
+
+let currentCase = CASES.chest;
+
+const state = {
+  evaluations: {
+    chest: true,
+    fatigue: true,
+    neuro: true
+  },
+  feedback: []
+};
+
+
+/* ==========================================================
+   INITIALIZATION
+========================================================== */
+
+document.addEventListener("DOMContentLoaded", () => {
+
+  populateCaseSelector();
+
+  document.getElementById("case-selector").value = "chest";
+
+  renderCase();
+
+  lucide.createIcons();
+});
+
+
+function populateCaseSelector() {
+
+  const select = document.getElementById("case-selector");
+
+  select.innerHTML = Object.values(CASES).map(c => `
+    <option value="${c.id}">
+      ${c.title} — ${c.subtitle}
+    </option>
+  `).join("");
+}
+
+
+/* ==========================================================
+   CASE LOADING
+========================================================== */
+
+function loadCase(id) {
+
+  currentCase = CASES[id];
+
+  renderCase();
+
+  showToast("Loaded " + currentCase.title);
+}
+
+
+function renderCase() {
+
+  document.getElementById("case-narrative").value = currentCase.narrative;
+
+  renderHeader();
+  renderTimeline();
+  renderEntities();
+  renderSnapshot();
+  renderContradictions();
+  renderBiases();
+  renderSafety();
+  renderDifferentials();
+  renderNextSteps();
+  renderEvidence();
+
+  updateAgentStatus("ready");
+
+  lucide.createIcons();
+}
+
+
+/* ==========================================================
+   HEADER
+========================================================== */
+
+function renderHeader() {
+
+  const c = currentCase;
+
+  document.getElementById("case-header").innerHTML = `
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+
+          <span class="px-2 py-1 rounded-md bg-slate-200 text-slate-700 text-[10px] font-bold">
+            CASE ${Object.keys(CASES).indexOf(c.id) + 1}
+          </span>
+
+          <span class="px-2 py-1 rounded-md ${
+            c.patient.acuity === "High"
+              ? "bg-red-50 text-red-700"
+              : "bg-amber-50 text-amber-700"
+          } text-[10px] font-bold uppercase">
+            ${c.patient.acuity} ACUITY
+          </span>
+
+        </div>
+
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">
+          ${c.title}
+        </h1>
+
+        <p class="text-sm text-slate-500 mt-1">
+          Current working hypothesis:
+          <strong class="text-slate-700">${c.working}</strong>
+        </p>
+      </div>
+
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+
+        ${[
+          ["Patient", `${c.patient.age}y ${c.patient.sex}`],
+          ["Setting", c.patient.setting],
+          ["Working Dx", c.working],
+          ["Engine", "4 agents"]
+        ].map(item => `
+          <div class="bg-white border border-slate-200 rounded-lg px-3 py-2 min-w-[125px]">
+            <div class="text-[10px] text-slate-400 uppercase">${item[0]}</div>
+            <div class="text-xs font-semibold text-slate-700 mt-0.5">${item[1]}</div>
+          </div>
+        `).join("")}
+
+      </div>
+
+    </div>
+  `;
+}
+
+
+/* ==========================================================
+   TIMELINE
+========================================================== */
+
+function renderTimeline() {
+
+  document.getElementById("timeline").innerHTML =
+    currentCase.timeline.map(item => {
+
+      const icons = {
+        symptom: "activity",
+        risk: "triangle-alert",
+        vital: "heart-pulse",
+        lab: "flask-conical",
+        med: "pill"
+      };
+
+      const colors = {
+        symptom: "bg-blue-50 text-blue-600",
+        risk: "bg-amber-50 text-amber-600",
+        vital: "bg-red-50 text-red-600",
+        lab: "bg-emerald-50 text-emerald-600",
+        med: "bg-purple-50 text-purple-600"
+      };
+
+      return `
+        <div class="agent-line relative pl-8 pb-5">
+
+          <div class="absolute left-0 top-0 w-4 h-4 rounded-full
+                      ${colors[item.type]}
+                      flex items-center justify-center z-10">
+            <i data-lucide="${icons[item.type]}" class="w-2.5 h-2.5"></i>
+          </div>
+
+          <div class="text-[10px] font-semibold text-slate-400 mb-0.5">
+            ${item.time}
+          </div>
+
+          <div class="text-xs font-bold text-slate-700">
+            ${item.title}
+          </div>
+
+          <div class="text-[11px] text-slate-500 mt-0.5 leading-4">
+            ${item.detail}
+          </div>
+
+        </div>
+      `;
+    }).join("");
+}
+
+
+/* ==========================================================
+   ENTITY EXTRACTION
+========================================================== */
+
+function renderEntities() {
+
+  const groups = [
+    ["Symptoms", currentCase.entities.symptoms, "blue"],
+    ["Risk Factors", currentCase.entities.risks, "amber"],
+    ["Key Biomarkers", currentCase.entities.biomarkers, "emerald"],
+    ["Vitals", currentCase.entities.vitals, "slate"]
+  ];
+
+  document.getElementById("entities").innerHTML =
+    groups.map(group => {
+
+      const palette = {
+        blue: "bg-blue-50 text-blue-700 border-blue-100",
+        amber: "bg-amber-50 text-amber-700 border-amber-100",
+        emerald: "bg-emerald-50 text-emerald-700 border-emerald-100",
+        slate: "bg-slate-50 text-slate-700 border-slate-200"
+      };
+
+      return `
+        <div>
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+            ${group[0]}
+          </div>
+
+          <div class="flex flex-wrap gap-1.5">
+            ${group[1].map(x => `
+              <span class="px-2 py-1 rounded-md border ${palette[group[2]]} text-[10px] font-semibold">
+                ${x}
+              </span>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }).join("");
+}
+
+
+/* ==========================================================
+   SNAPSHOT
+========================================================== */
+
+function renderSnapshot() {
+
+  const colors = {
+    red: "bg-red-50 text-red-700",
+    amber: "bg-amber-50 text-amber-700",
+    green: "bg-emerald-50 text-emerald-700",
+    blue: "bg-blue-50 text-blue-700"
+  };
+
+  document.getElementById("snapshot").innerHTML =
+    currentCase.snapshot.map(item => `
+      <div class="rounded-lg ${colors[item[2]]} px-3 py-2">
+        <div class="text-[9px] uppercase opacity-60">${item[0]}</div>
+        <div class="text-xs font-bold mt-0.5">${item[1]}</div>
+      </div>
+    `).join("");
+}
+
+
+/* ==========================================================
+   CONTRADICTIONS
+========================================================== */
+
+function renderContradictions() {
+
+  const container = document.getElementById("contradiction-body");
+
+  document.getElementById("contradiction-count").textContent =
+    currentCase.contradictions.length + " conflicts";
+
+  container.innerHTML =
+    currentCase.contradictions.map((x, i) => {
+
+      const urgent = x.severity === "urgent";
+
+      return `
+        <div class="${urgent ? "severity-urgent" : "severity-warning"} rounded-lg p-3 fade-in">
+
+          <div class="flex items-start gap-3">
+
+            <div class="mt-0.5 shrink-0">
+              <i data-lucide="${urgent ? "shield-alert" : "triangle-alert"}"
+                 class="w-4 h-4 ${urgent ? "text-red-600" : "text-amber-600"}"></i>
+            </div>
+
+            <div class="flex-1 min-w-0">
+
+              <div class="flex justify-between gap-3">
+                <div class="text-xs font-bold text-slate-800">
+                  ${x.title}
+                </div>
+
+                <button
+                  onclick="showDetail('Contradiction', '${escapeText(x.detail)}')"
+                  class="text-[10px] text-slate-400 hover:text-blue-600">
+                  Details
+                </button>
+              </div>
+
+              <p class="text-[11px] text-slate-600 leading-5 mt-1">
+                ${x.detail}
+              </p>
+
+              <div class="mt-2">
+                <span class="text-[9px] font-bold uppercase tracking-wide ${
+                  urgent ? "text-red-600" : "text-amber-700"
+                }">
+                  ${x.evidence}
+                </span>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      `;
+    }).join("");
+}
+
+
+/* ==========================================================
+   BIAS
+========================================================== */
+
+function renderBiases() {
+
+  document.getElementById("bias-body").innerHTML =
+    currentCase.biases.map((x, i) => `
+      <div class="rounded-lg border border-orange-100 bg-orange-50/50 p-3">
+
+        <div class="flex items-center gap-2 mb-2">
+
+          <span class="w-6 h-6 rounded-md bg-orange-100 text-orange-700 flex items-center justify-center">
+            <i data-lucide="message-circle-question" class="w-3.5 h-3.5"></i>
+          </span>
+
+          <span class="text-[10px] font-bold uppercase text-orange-700">
+            ${x.title}
+          </span>
+
+          <span class="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-white border border-orange-100 text-orange-600">
+            ${x.severity}
+          </span>
+
+        </div>
+
+        <div class="text-xs font-medium text-slate-700 leading-5">
+          "${x.question}"
+        </div>
+
+      </div>
+    `).join("");
+}
+
+
+/* ==========================================================
+   SAFETY
+========================================================== */
+
+function renderSafety() {
+
+  document.getElementById("safety-count").textContent =
+    currentCase.safety.length + " signals";
+
+  document.getElementById("safety-body").innerHTML =
+    currentCase.safety.map(x => `
+      <div class="severity-urgent rounded-lg p-3">
+
+        <div class="flex items-start gap-3">
+
+          <i data-lucide="shield-alert"
+             class="w-4 h-4 text-red-600 mt-0.5 shrink-0"></i>
+
+          <div>
+            <div class="text-xs font-bold text-slate-800">
+              ${x.title}
+            </div>
+
+            <p class="text-[11px] text-slate-600 leading-5 mt-1">
+              ${x.detail}
             </p>
 
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5 class="ss-secondary mb-3">Your Location</h5>
-                    <div class="mb-3">
-                        <label for="employeeId" class="form-label small">Your Workstation ID (Origin)</label>
-                        <input type="text" class="form-control" id="employeeId" value="WS-15" placeholder="Enter WS-XX">
-                    </div>
-                </div>
+            <div class="mt-2 inline-flex px-2 py-1 rounded bg-white/70 text-[9px] font-bold text-red-700">
+              ${x.action}
             </div>
+          </div>
 
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5 class="ss-secondary mb-3">Simulate Booking</h5>
-                    <div class="mb-3">
-                        <label for="groupSize" class="form-label small">Number of Attendees</label>
-                        <input type="number" class="form-control" id="groupSize" min="1" max="8" value="2">
-                    </div>
-                    <div class="mb-3">
-                        <label for="startTime" class="form-label small">Start Time</label>
-                        <select class="form-select" id="startTime" required></select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="endTime" class="form-label small">End Time</label>
-                        <select class="form-select" id="endTime" required></select>
-                    </div>
-
-                    <div class="d-grid mt-4">
-                        <button type="button" class="btn btn-success btn-lg rounded-pill shadow" id="confirmBookingBtn">
-                            ASK SPACE SENSE AI
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <h5 class="ss-primary mt-4 mb-2">Simulation Status</h5>
-            <div id="statusMessageText" class="status-message-text text-center alert alert-info">
-                Enter your details and click the button to run the proximity analysis.
-            </div>
-
-            <div class="border-top mt-4 pt-3 d-none">
-                <h5 class="ss-primary">Latest Booking Log</h5>
-                <ul id="bookingLog" class="list-group list-group-flush small">
-                    <li class="list-group-item">System started at ${new Date().toLocaleTimeString()}</li>
-                </ul>
-            </div>
         </div>
-    </div>
+
+      </div>
+    `).join("");
+}
 
 
-    <div class="modal fade" id="aiSuggestionModal" tabindex="-1" aria-labelledby="aiSuggestionModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header ss-bg-primary text-white">
-                    <h5 class="modal-title" id="aiSuggestionModalLabel">Space Sense AI: Your Booking Assistant</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-0">
-                    <div class="row g-0">
-                        <div
-                            class="col-3 text-center p-3 bg-light d-flex flex-column align-items-center justify-content-center border-end">
-                            <div class="ai-bot-icon">🤖</div>
-                            <h6 class="mt-2 text-primary fw-bold">Space Sense AI</h6>
-                            <small class="text-muted">Analyzing proximity...</small>
-                        </div>
-                        <div class="col-9 p-4">
-                            <div id="modalContent">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer d-none" id="modalFooter">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
+/* ==========================================================
+   DIFFERENTIALS
+========================================================== */
+
+function renderDifferentials() {
+
+  document.getElementById("differentials").innerHTML =
+    currentCase.differentials.map(x => {
+
+      const rare = x.category.includes("Rare");
+
+      return `
+        <div class="rounded-xl border border-slate-200 p-3 hover:border-blue-200 transition">
+
+          <div class="flex gap-3">
+
+            <div class="w-7 h-7 rounded-lg ${
+              rare
+                ? "bg-red-50 text-red-600"
+                : "bg-blue-50 text-blue-600"
+            } flex items-center justify-center text-xs font-bold shrink-0">
+              ${x.rank}
             </div>
-        </div>
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script>
-        const initialBookings = [
-            { roomId: "MR-009 (India)", date: "2025-11-11", start: "09:00", end: "10:30", bookedBy: "JaneD", groupSize: 5, topic: "Q3 Project Alignment" },
-            { roomId: "MR-017 (Quebec)", date: "2025-11-11", start: "10:00", end: "12:00", bookedBy: "JohnS", groupSize: 3, topic: "IT Strategy Meeting" },
-            { roomId: "MR-003 (Gamma)", date: "2025-11-11", start: "13:00", end: "14:00", bookedBy: "AlexP", groupSize: 6, topic: "Marketing Brainstorm" },
-            { roomId: "MR-015 (Oscar)", date: "2025-11-11", start: "14:30", "end": "16:00", bookedBy: "SaraW", groupSize: 8, topic: "Annual Review Prep" },
-            { roomId: "MR-001 (Alpha)", date: "2025-11-11", start: "16:30", end: "17:30", bookedBy: "MikeR", groupSize: 2, topic: "1:1 with Jane Doe" }
-        ];
-
-        let allBookings = [...initialBookings];
-        window.userId = 'FitnessFan_Arpu';
-
-        const SCALE_FACTOR = 3;
-        const ROOM_HEIGHT = 8;
-        const X_AISLE = 10.0;
-        const X_EAST_AISLE = 46.0;
-        const Z_NORTH_AISLE = -15.0;
-        const Z_SOUTH_AISLE = -79.5;
-        const AISLE_COLOR = 0xcccccc;
-
-        const pods = [
-            { id: "POD1", x: 15, z: -30, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod1" },
-            { id: "POD2", x: 21.5, z: -30, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod2" },
-            { id: "POD3", x: 28, z: -30, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod3" },
-            { id: "POD4", x: 34.5, z: -30, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod4" },
-            { id: "POD5", x: 41, z: -30, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod5" },
-            { id: "POD6", x: 15, z: -55, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod6" },
-            { id: "POD7", x: 21.5, z: -55, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod7" },
-            { id: "POD8", x: 28, z: -55, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod8" },
-            { id: "POD9", x: 34.5, z: -55, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod9" },
-            { id: "POD10", x: 41, z: -55, capacity: 2, w: 5, d: 2, type: "pod", label: "Pod10" }
-        ];
-
-        const zones = [
-            { id: "PANTRY (LOOM)", x: 87, z: -45, capacity: 200, w: 10, d: 5, type: "general", label: "Pantry", color: 0x6D4C41 },
-            { id: "GAMES (Arena)", x: 87, z: -35, capacity: 50, w: 10, d: 10, type: "general", label: "Games", color: 0x7CB342 },
-            { id: "Toilet (Toilet)", x: 87, z: -25, capacity: 10, w: 10, d: 5, type: "general", label: "Toilet", color: 0x546E7A }
-        ];
-
-
-        const workstations = [
-            { id: "WS-1", x: 12.75, z: -19.0 }, { id: "WS-2", x: 16.25, z: -19.0 }, { id: "WS-3", x: 19.75, z: -19.0 }, { id: "WS-4", x: 23.25, z: -19.0 }, { id: "WS-5", x: 26.75, z: -19.0 },
-            { id: "WS-6", x: 30.25, z: -19.0 }, { id: "WS-7", x: 33.75, z: -19.0 }, { id: "WS-8", x: 37.25, z: -19.0 }, { id: "WS-9", x: 40.75, z: -19.0 }, { id: "WS-10", x: 44.25, z: -19.0 },
-            { id: "WS-11", x: 12.75, z: -25.0 }, { id: "WS-12", x: 16.25, z: -25.0 }, { id: "WS-13", x: 19.75, z: -25.0 }, { id: "WS-14", x: 23.25, z: -25.0 }, { id: "WS-15", x: 26.75, z: -25.0 },
-            { id: "WS-16", x: 30.25, z: -25.0 }, { id: "WS-17", x: 33.75, z: -25.0 }, { id: "WS-18", x: 37.25, z: -25.0 }, { id: "WS-19", x: 40.75, z: -25.0 }, { id: "WS-20", x: 44.25, z: -25.0 },
-
-            { id: "WS-21", x: 12.75, z: -39.75 }, { id: "WS-22", x: 16.25, z: -39.75 }, { id: "WS-23", x: 19.75, z: -39.75 }, { id: "WS-24", x: 23.25, z: -39.75 }, { id: "WS-25", x: 26.75, z: -39.75 },
-            { id: "WS-26", x: 30.25, z: -39.75 }, { id: "WS-27", x: 33.75, z: -39.75 }, { id: "WS-28", x: 37.25, z: -39.75 }, { id: "WS-29", x: 40.75, z: -39.75 }, { id: "WS-30", x: 44.25, z: -39.75 },
-            { id: "WS-31", x: 12.75, z: -43.25 }, { id: "WS-32", x: 16.25, z: -43.25 }, { id: "WS-33", x: 19.75, z: -43.25 }, { id: "WS-34", x: 23.25, z: -43.25 }, { id: "WS-35", x: 26.75, z: -43.25 },
-            { id: "WS-36", x: 30.25, z: -43.25 }, { id: "WS-37", x: 33.75, z: -43.25 }, { id: "WS-38", x: 37.25, z: -43.25 }, { id: "WS-39", x: 40.75, z: -43.25 }, { id: "WS-40", x: 44.25, z: -43.25 },
-
-            { id: "WS-41", x: 12.75, z: -68.75 }, { id: "WS-42", x: 16.25, z: -68.75 }, { id: "WS-43", x: 19.75, z: -68.75 }, { id: "WS-44", x: 23.25, z: -68.75 }, { id: "WS-45", x: 26.75, z: -68.75 },
-            { id: "WS-46", x: 30.25, z: -68.75 }, { id: "WS-47", x: 33.75, z: -68.75 }, { id: "WS-48", x: 37.25, z: -68.75 }, { id: "WS-49", x: 40.75, z: -68.75 }, { id: "WS-50", x: 44.25, z: -68.75 },
-            { id: "WS-51", x: 12.75, z: -72.25 }, { id: "WS-52", x: 16.25, z: -72.25 }, { id: "WS-53", x: 19.75, z: -72.25 }, { id: "WS-54", x: 23.25, z: -72.25 }, { id: "WS-55", x: 26.75, z: -72.25 },
-            { id: "WS-56", x: 30.25, z: -72.25 }, { id: "WS-57", x: 33.75, z: -72.25 }, { id: "WS-58", x: 37.25, z: -72.25 }, { id: "WS-59", x: 40.75, z: -72.25 }, { id: "WS-60", x: 44.25, z: -72.25 }
-        ];
-
-        const meetingRooms = [
-            { id: "MR-001 (Alpha)", x: 11, z: -5, capacity: 5, w: 10, d: 5 }, { id: "MR-002 (Beta)", x: 28, z: -5, capacity: 4, w: 10, d: 5 }, { id: "MR-003 (Gamma)", x: 45, z: -5, capacity: 6, w: 10, d: 5 }, { id: "MR-004 (Delta)", x: 62, z: -5, capacity: 5, w: 10, d: 5 }, { id: "MR-005 (Echo)", x: 79, z: -5, capacity: 7, w: 10, d: 5 },
-            { id: "MR-006 (Foxtrot)", x: 7, z: -16.5, capacity: 4, w: 5, d: 10 }, { id: "MR-007 (Golf)", x: 7, z: -26.5, capacity: 6, w: 5, d: 10 }, { id: "MR-008 (Hotel)", x: 7, z: -36.5, capacity: 3, w: 5, d: 10 }, { id: "MR-009 (India)", x: 7, z: -46.5, capacity: 8, w: 5, d: 10 }, { id: "MR-010 (Juliet)", x: 7, z: -56.5, capacity: 4, w: 5, d: 10 },
-            { id: "MR-011 (Kilo)", x: 77, z: -13, capacity: 7, w: 5, d: 10 }, { id: "MR-012 (Lima)", x: 77, z: -26, capacity: 4, w: 5, d: 10 }, { id: "MR-013 (Mike)", x: 77, z: -39, capacity: 6, w: 5, d: 10 }, { id: "MR-014 (November)", x: 77, z: -52, capacity: 3, w: 5, d: 10 }, { id: "MR-015 (Oscar)", x: 77, z: -65, capacity: 8, w: 5, d: 10 },
-            { id: "MR-016 (Papa)", x: 15, z: -84.5, capacity: 4, w: 10, d: 5 }, { id: "MR-017 (Quebec)", x: 30, z: -84.5, capacity: 7, w: 10, d: 5 }, { id: "MR-018 (Romeo)", x: 45, z: -84.5, capacity: 3, w: 10, d: 5 }, { id: "MR-019 (Sierra)", x: 60, z: -84.5, capacity: 6, w: 10, d: 5 }, { id: "MR-020 (Tango)", x: 75, z: -84.5, capacity: 5, w: 10, d: 5 }
-        ];
-        const floorDimensions = { width: 90, depth: 90, x: 45, z: -45 };
-
-        let scene, camera, renderer, controls;
-        let raycaster, mouse;
-        let lastSuggestions = [];
-        const objects = [];
-        const lineObjects = [];
-        let mapPinMesh = null;
-        const clock = new THREE.Clock();
-
-
-        const calculateDistance = (p1, p2) => {
-            const X_WEST = X_AISLE;
-            const X_EAST = X_EAST_AISLE;
-
-            const d1a_exit_h = Math.abs(p1.x - X_WEST);
-            const d1b_travel_v = Math.abs(p1.z - p2.z);
-            const d1c_travel_h = Math.abs(X_WEST - p2.x);
-
-            const totalDistanceWest = d1a_exit_h + d1b_travel_v + d1c_travel_h;
-
-            const d2a_exit_h = Math.abs(p1.x - X_EAST);
-            const d2b_travel_v = Math.abs(p1.z - p2.z);
-            const d2c_travel_h = Math.abs(X_EAST - p2.x);
-
-            const totalDistanceEast = d2a_exit_h + d2b_travel_v + d2c_travel_h;
-
-            const totalDistance = Math.min(totalDistanceWest, totalDistanceEast);
-
-            if (totalDistance === totalDistanceWest) {
-                p1.chosenAisle = 'WEST_CORNER';
-            } else {
-                p1.chosenAisle = 'EAST_CORNER';
-            }
-
-            return totalDistance;
-        };
-
-        function isRoomAvailable(roomId, checkDate, checkStart, checkEnd) {
-            const checkingStart = checkDate + 'T' + checkStart + ':00';
-            const checkingEnd = checkDate + 'T' + checkEnd + ':00';
-            const roomBookings = allBookings.filter(b => b.roomId === roomId && b.date === checkDate);
-            for (const booking of roomBookings) {
-                const bookedStart = booking.date + 'T' + booking.start + ':00';
-                const bookedEnd = booking.date + 'T' + booking.end + ':00';
-                if (checkingStart < bookedEnd && checkingEnd > bookedStart) {
-                    return { isBooked: true, booking: booking };
-                }
-            }
-            return { isBooked: false, booking: null };
-        }
-
-        function findNearestAvailableRooms(employeePosition, requiredCapacity, checkDate, checkStart, checkEnd, count = 3) {
-            if (!employeePosition) return [];
-            const employeeWs = { ...employeePosition, x: employeePosition.x, z: employeePosition.z };
-
-            const availableRoomsWithDistance = meetingRooms
-                .filter(room => room.capacity >= requiredCapacity)
-                .map(room => ({
-                    ...room,
-                    availability: isRoomAvailable(room.id, checkDate, checkStart, checkEnd),
-                }))
-                .filter(room => !room.availability.isBooked)
-                .map(room => {
-                    const distance = calculateDistance(employeeWs, room);
-                    return {
-                        ...room,
-                        distance: distance,
-                        chosenAisle: employeeWs.chosenAisle
-                    }
-                });
-
-            availableRoomsWithDistance.sort((a, b) => a.distance - b.distance);
-
-            return availableRoomsWithDistance.slice(0, count).map((room, index) => ({
-                ...room,
-                chosenAisle: room.chosenAisle,
-                rank: index + 1,
-                distance: room.distance.toFixed(1)
-            }));
-        }
-
-        function createTextCanvas(text, color = 'white', rank = null) {
-            const display_text = rank !== null ? String(rank) : text;
-
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-
-            const fontSize = rank !== null ? 120 : 100;
-            const font = `bold ${fontSize}px Inter, Arial`;
-
-            context.font = font;
-            const textMetrics = context.measureText(display_text);
-            const textWidth = textMetrics.width;
-            const textHeight = fontSize * 1.5;
-
-            canvas.width = textWidth + 40;
-            canvas.height = textHeight;
-
-            context.font = font;
-            const bgColor = rank !== null ? 'rgba(0, 0, 0, 0.4)' : 'rgba(131, 0, 81, 0.7)';
-            context.fillStyle = bgColor;
-            context.fillRect(0, 0, canvas.width, canvas.height);
-
-            context.fillStyle = color;
-            context.fillText(display_text, 20, fontSize + 5);
-
-            return canvas;
-        }
-
-        function createMapPinMesh() {
-            const pinGroup = new THREE.Group();
-            const blueMaterial = new THREE.MeshPhongMaterial({ color: 0x007bff });
-
-            const headRadius = 0.5 * SCALE_FACTOR;
-            const headGeo = new THREE.SphereGeometry(headRadius, 32, 32);
-            const pinHead = new THREE.Mesh(headGeo, blueMaterial);
-            pinHead.position.y = headRadius;
-
-            const bodyHeight = 2 * SCALE_FACTOR;
-            const bodyRadius = 0.15 * SCALE_FACTOR;
-            const bodyGeo = new THREE.ConeGeometry(bodyRadius, bodyHeight, 32);
-            const pinBody = new THREE.Mesh(bodyGeo, blueMaterial);
-
-            pinBody.position.y = pinHead.position.y - bodyHeight / 2;
-
-            pinGroup.add(pinHead);
-            pinGroup.add(pinBody);
-
-            pinGroup.rotation.x = -Math.PI / 16;
-
-            pinGroup.userData.isMapPin = true;
-            return pinGroup;
-        }
-
-        function createRankCubicle(rank, color) {
-            const markerGroup = new THREE.Group();
-            const cubicleSize = 0.8 * SCALE_FACTOR;
-            const cubicleHeight = 1.5 * SCALE_FACTOR;
-
-            const markerHalf = cubicleSize / 2;
-
-            const boxGeo = new THREE.BoxGeometry(cubicleSize, cubicleHeight, cubicleSize);
-            const boxMat = new THREE.MeshPhongMaterial({ color: color });
-            const boxMesh = new THREE.Mesh(boxGeo, boxMat);
-            boxMesh.position.y = cubicleHeight / 2;
-            markerGroup.add(boxMesh);
-
-            const labelCanvas = createTextCanvas(String(rank), 'white', rank);
-            const texture = new THREE.CanvasTexture(labelCanvas);
-            texture.minFilter = THREE.LinearFilter;
-
-            const labelMaterial = new THREE.MeshBasicMaterial({
-                map: texture,
-                transparent: true,
-                side: THREE.FrontSide
-            });
-
-            const planeHeight = cubicleHeight * 0.9;
-            const planeWidth = cubicleSize * 0.9;
-            const labelGeo = new THREE.PlaneGeometry(planeWidth, planeHeight);
-            const labelMesh = new THREE.Mesh(labelGeo, labelMaterial);
-
-            labelMesh.position.set(0, cubicleHeight / 2, markerHalf + 0.05);
-            labelMesh.userData.isLabel = true;
-
-            markerGroup.add(labelMesh);
-            markerGroup.userData.isRankMarker = true;
-            markerGroup.userData.markerHalf = markerHalf;
-
-            return markerGroup;
-        }
-
-
-        function init3DScene() {
-            const container = document.getElementById('scene-container');
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xf0f0f0);
-            objects.length = 0;
-
-            camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
-            camera.position.set(200, 450, -200);
-            camera.lookAt(floorDimensions.x * SCALE_FACTOR, 0, floorDimensions.z * SCALE_FACTOR);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(width, height);
-            container.appendChild(renderer.domElement);
-
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.screenSpacePanning = false;
-            controls.minDistance = 10;
-            controls.maxDistance = 500;
-
-            controls.minPolarAngle = 0;
-            controls.maxPolarAngle = Math.PI / 4;
-
-            controls.enablePan = false;
-            controls.target.set(floorDimensions.x * SCALE_FACTOR, 0, floorDimensions.z * SCALE_FACTOR);
-
-
-            const ambientLight = new THREE.AmbientLight(0xcccccc, 0.9);
-            scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
-            directionalLight.position.set(100, 150, 50);
-            scene.add(directionalLight);
-
-            raycaster = new THREE.Raycaster();
-            mouse = new THREE.Vector2();
-
-            draw3DFloorPlan();
-
-            container.addEventListener('mousemove', onMouseMove, false);
-            container.addEventListener('click', onMouseClick, false);
-            window.addEventListener('resize', onWindowResize, false);
-        }
-
-        function clearRoomLabels(roomGroup) {
-            if (roomGroup.rankMarker) {
-                scene.remove(roomGroup.rankMarker);
-                roomGroup.rankMarker.traverse(child => {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) {
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(m => m.dispose());
-                        } else {
-                            child.material.dispose();
-                        }
-                    }
-                });
-                roomGroup.rankMarker = null;
-            }
-        }
-
-        function drawWorkstations() {
-            const DESK_WIDTH = 2.5 * SCALE_FACTOR;
-            const DESK_DEPTH = 1.5 * SCALE_FACTOR;
-            const DESK_HEIGHT = 0.3 * SCALE_FACTOR;
-            const DESK_Y = DESK_HEIGHT / 2;
-
-            const CHAIR_RADIUS = 0.5 * SCALE_FACTOR;
-            const PERSON_RADIUS = 0.8 * SCALE_FACTOR;
-            const PERSON_Y = DESK_HEIGHT + PERSON_RADIUS;
-
-            const deskMat = new THREE.MeshPhongMaterial({ color: 0x4f4f4f });
-            const chairMat = new THREE.MeshPhongMaterial({ color: 0xcccccc });
-            const personMat = new THREE.MeshPhongMaterial({ color: 0x964b00 });
-
-            workstations.forEach(ws => {
-                const wsGroup = new THREE.Group();
-                wsGroup.userData = { isWorkstation: true, id: ws.id, baseColor: chairMat.color.getHex() };
-                wsGroup.position.set(ws.x * SCALE_FACTOR, 0, ws.z * SCALE_FACTOR);
-
-                const wsNumber = parseInt(ws.id.split('-')[1]);
-                if ((wsNumber >= 1 && wsNumber <= 10) ||
-                    (wsNumber >= 31 && wsNumber <= 40) ||
-                    (wsNumber >= 51 && wsNumber <= 60)) {
-
-                    wsGroup.rotation.y = Math.PI;
-                } else {
-                    wsGroup.rotation.y = 0;
-                }
-
-                const deskGeo = new THREE.BoxGeometry(DESK_WIDTH, DESK_HEIGHT, DESK_DEPTH);
-                const deskMesh = new THREE.Mesh(deskGeo, deskMat);
-                deskMesh.position.y = DESK_Y;
-                deskMesh.userData.wsType = 'desk';
-                wsGroup.add(deskMesh);
-
-                const chairGeo = new THREE.CylinderGeometry(CHAIR_RADIUS, CHAIR_RADIUS, 0.5 * SCALE_FACTOR, 16);
-                const chairMesh = new THREE.Mesh(chairGeo, chairMat);
-                chairMesh.position.set(0, 0.25 * SCALE_FACTOR, DESK_DEPTH / 2 + CHAIR_RADIUS + 0.5 * SCALE_FACTOR);
-                chairMesh.userData.wsType = 'chair';
-                wsGroup.add(chairMesh);
-
-                const personGeo = new THREE.SphereGeometry(PERSON_RADIUS, 16, 16);
-                const personMesh = new THREE.Mesh(personGeo, personMat);
-                personMesh.position.set(chairMesh.position.x, PERSON_Y, chairMesh.position.z);
-                personMesh.userData.wsType = 'person';
-                wsGroup.add(personMesh);
-
-                scene.add(wsGroup);
-                objects.push(wsGroup);
-            });
-        }
-
-        function drawOtherZones() {
-            const allZones = [...pods, ...zones];
-
-            allZones.forEach(item => {
-                const itemGroup = new THREE.Group();
-                const isPod = item.type === 'pod';
-
-                let wallsColor, wallsOpacity, floorOpacity;
-
-                if (isPod) {
-                    wallsColor = 0xADD8E6;
-                    wallsOpacity = 0.3;
-                    floorOpacity = 0.3;
-                    itemGroup.userData = { isPod: true, id: item.id, capacity: item.capacity, baseColor: wallsColor, w: item.w, d: item.d };
-                } else {
-                    wallsColor = item.color || 0xAAAAAA;
-                    wallsOpacity = 0.5;
-                    floorOpacity = 0.6;
-                    itemGroup.userData = { isZone: true, id: item.id, label: item.label, baseColor: wallsColor, w: item.w, d: item.d };
-                }
-
-                itemGroup.position.set(item.x * SCALE_FACTOR, 0, item.z * SCALE_FACTOR);
-
-                const floorAreaGeo = new THREE.BoxGeometry(item.w * SCALE_FACTOR, 0.5, item.d * SCALE_FACTOR);
-                const floorAreaMat = new THREE.MeshBasicMaterial({ color: item.color || 0xcccccc, transparent: true, opacity: floorOpacity });
-                const floorArea = new THREE.Mesh(floorAreaGeo, floorAreaMat);
-                floorArea.position.set(0, 0.25, 0);
-                itemGroup.add(floorArea);
-
-                const wallMat = new THREE.MeshStandardMaterial({
-                    color: wallsColor,
-                    transparent: true,
-                    opacity: wallsOpacity,
-                    side: THREE.DoubleSide
-                });
-
-                const wallsGeo = new THREE.BoxGeometry(item.w * SCALE_FACTOR, ROOM_HEIGHT, item.d * SCALE_FACTOR);
-                const walls = new THREE.Mesh(wallsGeo, wallMat);
-                walls.position.set(0, ROOM_HEIGHT / 2, 0);
-                itemGroup.add(walls);
-
-                itemGroup.walls = walls;
-
-                const labelText = item.label || item.id;
-                const labelCanvas = createTextCanvas(labelText, 'white', null);
-                const texture = new THREE.CanvasTexture(labelCanvas);
-                texture.minFilter = THREE.LinearFilter;
-
-                const labelMaterial = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    transparent: true,
-                    side: THREE.DoubleSide
-                });
-
-                const aspectRatio = labelCanvas.width / labelCanvas.height;
-                const labelPlaneHeight = 3 * SCALE_FACTOR;
-                const labelPlaneWidth = labelPlaneHeight * aspectRatio;
-
-                const labelGeo = new THREE.PlaneGeometry(labelPlaneWidth, labelPlaneHeight);
-                const labelMesh = new THREE.Mesh(labelGeo, labelMaterial);
-
-                labelMesh.position.set(item.x * SCALE_FACTOR, ROOM_HEIGHT + 0.5, item.z * SCALE_FACTOR);
-                labelMesh.rotation.x = -Math.PI / 2;
-
-                itemGroup.label = labelMesh;
-                scene.add(labelMesh);
-
-                scene.add(itemGroup);
-                objects.push(itemGroup);
-            });
-        }
-
-        function drawAisles() {
-            const AISLE_HEIGHT = 0.05;
-            const aisleMat = new THREE.MeshPhongMaterial({ color: AISLE_COLOR, transparent: true, opacity: 0.1 });
-            const aisleGroup = new THREE.Group();
-            aisleGroup.userData.isAisle = true;
-
-            const fullDepth = floorDimensions.depth * SCALE_FACTOR;
-            const floorCenterZ = floorDimensions.z * SCALE_FACTOR;
-            const fullWidth = floorDimensions.width * SCALE_FACTOR;
-            const floorCenterX = floorDimensions.x * SCALE_FACTOR;
-
-            const v1Width = X_AISLE * SCALE_FACTOR;
-            const v1Geo = new THREE.BoxGeometry(v1Width, AISLE_HEIGHT, fullDepth);
-            const v1Aisle = new THREE.Mesh(v1Geo, aisleMat);
-            v1Aisle.position.set((X_AISLE / 2) * SCALE_FACTOR, AISLE_HEIGHT / 2, floorCenterZ);
-            aisleGroup.add(v1Aisle);
-
-            const v2Width = 9.0 * SCALE_FACTOR;
-            const v2Center = X_EAST_AISLE + 4.5;
-            const v2Geo = new THREE.BoxGeometry(v2Width, AISLE_HEIGHT, fullDepth);
-            const v2Aisle = new THREE.Mesh(v2Geo, aisleMat);
-            v2Aisle.position.set(v2Center * SCALE_FACTOR, AISLE_HEIGHT / 2, floorCenterZ);
-            aisleGroup.add(v2Aisle);
-
-            const v3Width = 20.0 * SCALE_FACTOR;
-            const v3Center = 80.0;
-            const v3Geo = new THREE.BoxGeometry(v3Width, AISLE_HEIGHT, fullDepth);
-            const v3Aisle = new THREE.Mesh(v3Geo, aisleMat);
-            v3Aisle.position.set(v3Center * SCALE_FACTOR, AISLE_HEIGHT / 2, floorCenterZ);
-            aisleGroup.add(v3Aisle);
-
-
-            const h1Depth = 6.0 * SCALE_FACTOR;
-            const h1CenterZ = Z_NORTH_AISLE;
-            const h1Geo = new THREE.BoxGeometry(fullWidth, AISLE_HEIGHT, h1Depth);
-            const h1Aisle = new THREE.Mesh(h1Geo, aisleMat);
-            h1Aisle.position.set(floorCenterX, AISLE_HEIGHT / 2, h1CenterZ * SCALE_FACTOR);
-            aisleGroup.add(h1Aisle);
-
-            const h2Depth = 14.0 * SCALE_FACTOR;
-            const h2CenterZ = -32.0;
-            const h2Geo = new THREE.BoxGeometry(fullWidth, AISLE_HEIGHT, h2Depth);
-            const h2Aisle = new THREE.Mesh(h2Geo, aisleMat);
-            h2Aisle.position.set(floorCenterX, AISLE_HEIGHT / 2, h2CenterZ * SCALE_FACTOR);
-            aisleGroup.add(h2Aisle);
-
-            const h3Depth = 24.0 * SCALE_FACTOR;
-            const h3CenterZ = -56.0;
-            const h3Geo = new THREE.BoxGeometry(fullWidth, AISLE_HEIGHT, h3Depth);
-            const h3Aisle = new THREE.Mesh(h3Geo, aisleMat);
-            h3Aisle.position.set(floorCenterX, AISLE_HEIGHT / 2, h3CenterZ * SCALE_FACTOR);
-            aisleGroup.add(h3Aisle);
-
-            const h4Depth = 5.0 * SCALE_FACTOR;
-            const h4CenterZ = Z_SOUTH_AISLE;
-            const h4Geo = new THREE.BoxGeometry(fullWidth, AISLE_HEIGHT, h4Depth);
-            const h4Aisle = new THREE.Mesh(h4Geo, aisleMat);
-            h4Aisle.position.set(floorCenterX, AISLE_HEIGHT / 2, h4CenterZ * SCALE_FACTOR);
-            aisleGroup.add(h4Aisle);
-
-            scene.add(aisleGroup);
-            objects.push(aisleGroup);
-        }
-
-        function updateRoomAvailabilityDisplay(startTime, endTime) {
-            const checkDate = "2025-11-11";
-            const bookedColor = 0x8B0000;
-            const availableColor = 0x28a745;
-
-            objects.forEach(group => {
-                if (group.userData.isRoom) {
-                    const roomData = group.userData;
-                    const status = isRoomAvailable(roomData.id, checkDate, startTime, endTime);
-
-                    const newColor = status.isBooked ? bookedColor : availableColor;
-
-                    group.userData.baseColor = newColor;
-
-                    const isHighlighted = lastSuggestions.some(r => r.id === roomData.id);
-
-                    if (!isHighlighted) {
-                        group.walls.material.color.setHex(newColor);
-                        group.walls.material.opacity = 0.1;
-                    }
-                }
-            });
-        }
-
-
-        function draw3DFloorPlan() {
-            const floorGeo = new THREE.PlaneGeometry(floorDimensions.width * SCALE_FACTOR, floorDimensions.depth * SCALE_FACTOR);
-            const floorMat = new THREE.MeshPhongMaterial({ color: 0x474e54, side: THREE.DoubleSide });
-            const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.rotation.x = -Math.PI / 2;
-            floor.position.set(floorDimensions.x * SCALE_FACTOR, 0, floorDimensions.z * SCALE_FACTOR);
-            scene.add(floor);
-
-            drawAisles();
-
-            drawWorkstations();
-
-            drawOtherZones();
-
-            const initialColor = 0x28a745;
-
-            meetingRooms.forEach(room => {
-                const roomGroup = new THREE.Group();
-                roomGroup.userData = { isRoom: true, id: room.id, capacity: room.capacity, baseColor: initialColor, w: room.w, d: room.d };
-                roomGroup.position.set(room.x * SCALE_FACTOR, 0, room.z * SCALE_FACTOR);
-
-                const floorAreaGeo = new THREE.BoxGeometry(room.w * SCALE_FACTOR, 0.5, room.d * SCALE_FACTOR);
-                const floorAreaMat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.5 });
-                const floorArea = new THREE.Mesh(floorAreaGeo, floorAreaMat);
-                floorArea.position.set(0, 0.25, 0);
-                roomGroup.add(floorArea);
-
-                const wallMat = new THREE.MeshStandardMaterial({
-                    color: initialColor,
-                    transparent: true,
-                    opacity: 0.1,
-                    side: THREE.DoubleSide
-                });
-
-                const wallsGeo = new THREE.BoxGeometry(room.w * SCALE_FACTOR, ROOM_HEIGHT, room.d * SCALE_FACTOR);
-                const walls = new THREE.Mesh(wallsGeo, wallMat);
-                walls.position.set(0, ROOM_HEIGHT / 2, 0);
-                roomGroup.add(walls);
-
-                roomGroup.walls = walls;
-
-                const roomName = room.id.split('(')[0].trim();
-                const labelCanvas = createTextCanvas(roomName, 'white', null);
-                const texture = new THREE.CanvasTexture(labelCanvas);
-                texture.minFilter = THREE.LinearFilter;
-
-                const labelMaterial = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    transparent: true,
-                    side: THREE.DoubleSide
-                });
-
-                const aspectRatio = labelCanvas.width / labelCanvas.height;
-                const labelPlaneHeight = 3 * SCALE_FACTOR;
-                const labelPlaneWidth = labelPlaneHeight * aspectRatio;
-
-                const labelGeo = new THREE.PlaneGeometry(labelPlaneWidth, labelPlaneHeight);
-                const labelMesh = new THREE.Mesh(labelGeo, labelMaterial);
-
-                labelMesh.position.set(room.x * SCALE_FACTOR, ROOM_HEIGHT + 0.5, room.z * SCALE_FACTOR);
-                labelMesh.rotation.x = -Math.PI / 2;
-
-                if (roomGroup.label) {
-                    scene.remove(roomGroup.label);
-                    roomGroup.label.geometry.dispose();
-                    roomGroup.label.material.dispose();
-                }
-
-                roomGroup.label = labelMesh;
-                scene.add(labelMesh);
-
-                scene.add(roomGroup);
-                objects.push(roomGroup);
-            });
-
-            highlightEmployee(document.getElementById('employeeId').value.toUpperCase());
-        }
-
-        function highlightEmployee(employeeId) {
-            let selectedGroup = null;
-
-            objects.forEach(obj => {
-                if (obj.userData.isWorkstation) {
-                    const isSelected = obj.userData.id === employeeId;
-                    const newColor = isSelected ? 0xffc107 : obj.userData.baseColor;
-
-                    obj.children.forEach(child => {
-                        if (child.userData.wsType === 'chair' || child.userData.wsType === 'person') {
-                            child.material.color.setHex(newColor);
-                        } else if (child.userData.wsType === 'desk') {
-                            child.material.color.setHex(0x4f4f4f);
-                        } else if (child.geometry.type === 'BoxGeometry') {
-                            child.material.color.setHex(0xcccccc);
-                        }
-                    });
-
-                    obj.position.y = isSelected ? 0.5 : 0;
-
-                    if (isSelected) {
-                        selectedGroup = obj;
-                    }
-                }
-            });
-
-            if (mapPinMesh) {
-                scene.remove(mapPinMesh);
-                mapPinMesh = null;
-            }
-
-            if (selectedGroup) {
-                mapPinMesh = createMapPinMesh();
-
-                const personTopUnscaled = (0.3 * 2) + 0.8;
-
-                const levitationHeight = personTopUnscaled * SCALE_FACTOR + 1 * SCALE_FACTOR;
-
-                mapPinMesh.position.set(
-                    selectedGroup.position.x,
-                    levitationHeight,
-                    selectedGroup.position.z
-                );
-                scene.add(mapPinMesh);
-            }
-        }
-
-        function highlightRooms(nearestRooms) {
-            lineObjects.forEach(line => scene.remove(line));
-            lineObjects.length = 0;
-
-            const employeeId = document.getElementById('employeeId').value.toUpperCase();
-            const employeeWs = workstations.find(ws => ws.id === employeeId);
-            const highlightColor = 0xffa500;
-
-            const PATH_Y_HEIGHT = 0.5;
-
-            const origin = employeeWs ? new THREE.Vector3(employeeWs.x * SCALE_FACTOR, PATH_Y_HEIGHT, employeeWs.z * SCALE_FACTOR) : null;
-
-            objects.forEach(group => {
-                if (group.userData.isRoom) {
-                    const roomData = nearestRooms.find(r => r.id === group.userData.id);
-                    const walls = group.walls;
-
-                    walls.material.opacity = 0.1;
-                    walls.material.color.setHex(group.userData.baseColor);
-                    clearRoomLabels(group);
-
-                    if (roomData) {
-                        walls.material.color.setHex(highlightColor);
-                        walls.material.opacity = 0.3;
-
-                        const markerGroup = createRankCubicle(roomData.rank, highlightColor);
-                        const onTopY = ROOM_HEIGHT + 0.5;
-
-                        markerGroup.rotation.y = 0;
-
-                        markerGroup.position.set(
-                            group.position.x,
-                            onTopY,
-                            group.position.z
-                        );
-
-                        group.rankMarker = markerGroup;
-                        scene.add(markerGroup);
-
-                        if (origin) {
-                            const destination = walls.position.clone().add(group.position);
-                            destination.y = PATH_Y_HEIGHT;
-
-                            let points = [origin];
-                            const scaled_X_WEST = X_AISLE * SCALE_FACTOR;
-                            const scaled_X_EAST = X_EAST_AISLE * SCALE_FACTOR;
-
-                            if (roomData.chosenAisle === 'WEST_CORNER' || roomData.chosenAisle === 'EAST_CORNER') {
-                                const chosenAisleX = roomData.chosenAisle === 'WEST_CORNER' ? scaled_X_WEST : scaled_X_EAST;
-
-                                points.push(new THREE.Vector3(chosenAisleX, PATH_Y_HEIGHT, origin.z));
-
-                                points.push(new THREE.Vector3(chosenAisleX, PATH_Y_HEIGHT, destination.z));
-
-                                points.push(destination);
-
-                            } else {
-                                points.push(destination);
-                            }
-
-                            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                            const lineMaterial = new THREE.LineDashedMaterial({
-                                color: highlightColor,
-                                linewidth: 3,
-                                scale: 1,
-                                dashSize: 2 * SCALE_FACTOR / 10,
-                                gapSize: 2 * SCALE_FACTOR / 10,
-                            });
-                            const line = new THREE.Line(geometry, lineMaterial);
-                            line.computeLineDistances();
-                            scene.add(line);
-                            lineObjects.push(line);
-                        }
-                    }
-                }
-            });
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-
-            if (mapPinMesh) {
-                const time = clock.getElapsedTime();
-                const bounceAmplitude = 0.2 * SCALE_FACTOR;
-                const bounceSpeed = 4;
-
-                const initialY = mapPinMesh.userData.initialY || mapPinMesh.position.y;
-                mapPinMesh.userData.initialY = initialY;
-
-                mapPinMesh.position.y = initialY + Math.sin(time * bounceSpeed) * bounceAmplitude;
-
-                mapPinMesh.rotation.y += 0.02;
-            }
-
-            renderer.render(scene, camera);
-        }
-
-        let intersectedObject = null;
-        let tooltip = document.getElementById('tooltip');
-        let currentRoomColor = 0xcccccc;
-
-        function onMouseMove(event) {
-            event.preventDefault();
-
-            const container = document.getElementById('scene-container');
-            const rect = container.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = - ((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(objects, true);
-
-            if (intersects.length > 0) {
-                let newIntersected = intersects[0].object;
-
-                while (newIntersected.parent && !newIntersected.userData.isRoom && !newIntersected.userData.isWorkstation && !newIntersected.userData.isPod && !newIntersected.userData.isZone && !newIntersected.userData.isAisle) {
-                    if (newIntersected.parent.userData.isAisle) {
-                        newIntersected = newIntersected.parent;
-                        break;
-                    }
-                    newIntersected = newIntersected.parent;
-                }
-
-                if (newIntersected !== intersectedObject) {
-                    if (intersectedObject) {
-                        resetHighlight(intersectedObject);
-                    }
-                    intersectedObject = newIntersected;
-                    applyHighlight(intersectedObject, event.clientX, event.clientY);
-                } else {
-                    updateTooltipPosition(event.clientX, event.clientY);
-                }
-            } else {
-                if (intersectedObject) {
-                    resetHighlight(intersectedObject);
-                }
-                intersectedObject = null;
-                tooltip.style.opacity = 0;
-            }
-        }
-
-        function applyHighlight(obj, clientX, clientY) {
-            tooltip.style.opacity = 1;
-            updateTooltipPosition(clientX, clientY);
-            const roomData = obj.userData;
-
-            if (obj.userData.isWorkstation) {
-                tooltip.innerHTML = `Workstation: <b>${obj.userData.id}</b>`;
-
-                obj.children.forEach(child => {
-                    if (child.userData.wsType === 'chair' || child.userData.wsType === 'person') {
-                        if (obj.userData.id !== document.getElementById('employeeId').value.toUpperCase()) {
-                            child.material.color.setHex(0x28a745);
-                        }
-                    }
-                });
-
-            } else if (obj.userData.isRoom) {
-                const startTime = document.getElementById('startTime').value;
-                const endTime = document.getElementById('endTime').value;
-                const status = isRoomAvailable(roomData.id, "2025-11-11", startTime, endTime);
-                const roomSuggestion = lastSuggestions.find(r => r.id === roomData.id);
-                const rank = roomSuggestion?.rank;
-
-                if (!rank) {
-                    currentRoomColor = obj.userData.baseColor;
-                    obj.walls.material.color.setHex(0xaaaaaa);
-                    obj.walls.material.opacity = 0.5;
-                }
-
-                let statusHtml = status.isBooked ? `<span class="text-danger">BOOKED</span>` : `<span class="text-success">AVAILABLE</span>`;
-                let rankHtml = rank ? `<br/><span style="color:#ffc107;">#${rank} (Ranked Room)</span>` : '';
-
-                tooltip.innerHTML = `
-                    Room: <b>${roomData.id}</b><br/>
-                    Capacity: ${roomData.capacity}<br/>
-                    Status: ${statusHtml}${rankHtml}
-                `;
-            } else if (obj.userData.isPod) {
-                tooltip.innerHTML = `
-                    Focus Pod: <b>${roomData.id}</b><br/>
-                    Capacity: ${roomData.capacity}<br/>
-                    Status: <span class="text-secondary">Available (Non-Bookable)</span>
-                `;
-                obj.walls.material.color.setHex(0x3CB371);
-                obj.walls.material.opacity = 0.5;
-            } else if (obj.userData.isZone) {
-                tooltip.innerHTML = `
-                    Zone: <b>${roomData.label}</b><br/>
-                    Location: ${roomData.id.split('(')[0].trim()}<br/>
-                    Status: <span class="text-secondary">Context Area</span>
-                `;
-                obj.walls.material.color.setHex(0xCCCCCC);
-                obj.walls.material.opacity = 0.7;
-            } else if (obj.userData.isAisle) {
-                tooltip.innerHTML = `
-                    <b>Primary Aisle/Corridor</b><br/>
-                    Mandatory path for distance calculation.
-                `;
-            }
-        }
-
-        function resetHighlight(obj) {
-            if (obj.userData.isWorkstation) {
-                const newColor = (obj.userData.id === document.getElementById('employeeId').value.toUpperCase()) ? 0xffc107 : obj.userData.baseColor;
-
-                obj.children.forEach(child => {
-                    if (child.userData.wsType === 'chair' || child.userData.wsType === 'person') {
-                        child.material.color.setHex(newColor);
-                    }
-                });
-
-            } else if (obj.userData.isRoom) {
-                const rank = lastSuggestions.find(r => r.id === obj.userData.id)?.rank;
-                if (!rank) {
-                    obj.walls.material.color.setHex(obj.userData.baseColor);
-                    obj.walls.material.opacity = 0.1;
-                }
-            } else if (obj.userData.isPod) {
-                obj.walls.material.color.setHex(obj.userData.baseColor);
-                obj.walls.material.opacity = 0.3;
-            } else if (obj.userData.isZone) {
-                obj.walls.material.color.setHex(obj.userData.baseColor);
-                obj.walls.material.opacity = 0.5;
-            } else if (obj.userData.isAisle) {
-            }
-        }
-
-        function updateTooltipPosition(clientX, clientY) {
-            tooltip.style.left = (clientX + 10) + 'px';
-            tooltip.style.top = (clientY - 30) + 'px';
-        }
-
-        function onMouseClick(event) {
-            if (intersectedObject && intersectedObject.userData.isWorkstation) {
-                const newId = intersectedObject.userData.id;
-                document.getElementById('employeeId').value = newId;
-                handleLogicUpdate();
-            }
-        }
-
-        function onWindowResize() {
-            const container = document.getElementById('scene-container');
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-        }
-
-        function handleLogicUpdate() {
-            allBookings = [...initialBookings];
-
-            const employeeId = document.getElementById('employeeId').value.toUpperCase();
-            const groupSize = parseInt(document.getElementById('groupSize').value);
-            const startTime = document.getElementById('startTime').value;
-            const endTime = document.getElementById('endTime').value;
-            const checkDate = "2025-11-11";
-
-            const simulationValid = employeeId && startTime && endTime && startTime < endTime && groupSize > 0;
-            const employeeWs = workstations.find(ws => ws.id === employeeId);
-
-            updateRoomAvailabilityDisplay(startTime, endTime);
-
-            highlightEmployee(employeeId);
-
-            if (simulationValid && employeeWs) {
-                const recommendedRooms = findNearestAvailableRooms(employeeWs, groupSize, checkDate, startTime, endTime, 3);
-                lastSuggestions = recommendedRooms;
-
-                highlightRooms(recommendedRooms);
-
-                updateStatusMessage(recommendedRooms, employeeId, startTime, endTime, simulationValid);
-            } else {
-                lastSuggestions = [];
-                highlightRooms([]);
-                updateStatusMessage([], employeeId, startTime, endTime, false);
-            }
-        }
-
-        function updateStatusMessage(nearestRooms, employeeId, startTime, endTime, simulationValid) {
-            const statusBox = document.getElementById('statusMessageText');
-            const workstation = workstations.find(ws => ws.id === employeeId);
-
-            if (!statusBox) return;
-
-            if (!workstation) {
-                statusBox.className = 'status-message-text text-center alert alert-danger';
-                statusBox.innerHTML = '🛑 Invalid **Workstation ID**. Click a person in 3D or enter a valid ID (e.g., WS-15).';
-                return;
-            }
-
-            if (!simulationValid) {
-                statusBox.className = 'status-message-text text-center alert alert-info';
-                statusBox.innerHTML = 'Set a valid **Start Time** and **End Time** and click the button to analyze proximity.';
-                return;
-            }
-
-            if (nearestRooms.length > 0) {
-                statusBox.className = 'status-message-text text-center alert alert-success';
-                statusBox.innerHTML = `
-                    ✅ **Proximity Scan Complete!**<br>
-                    Time: ${startTime} - ${endTime}. Click **ASK SPACE SENSE AI** to book.
-                `;
-            } else {
-                statusBox.className = 'status-message-text text-center alert alert-danger';
-                statusBox.innerHTML = `
-                    ❌ **No Available Rooms** found for ${document.getElementById('groupSize').value} people during ${startTime} - ${endTime}.
-                `;
-            }
-        }
-
-        function populateTimeSelects() {
-            const startSelect = document.getElementById('startTime');
-            const endSelect = document.getElementById('endTime');
-            if (!startSelect || !endSelect) return;
-
-            startSelect.innerHTML = '';
-            endSelect.innerHTML = '';
-
-            for (let h = 0; h < 24; h++) {
-                for (let m = 0; m < 60; m += 30) {
-                    const time24 = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-                    const hour12 = h % 12 || 12;
-                    const ampm = h < 12 ? 'AM' : 'PM';
-                    const displayTime = `${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
-
-                    startSelect.add(new Option(displayTime, time24));
-                    endSelect.add(new Option(displayTime, time24));
-                }
-            }
-        }
-
-        function setInitialTime() {
-            populateTimeSelects();
-            document.getElementById('startTime').value = '11:00';
-            document.getElementById('endTime').value = '12:00';
-        }
-
-        function logBooking(message) {
-            const logList = document.getElementById('bookingLog');
-            const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-            li.innerHTML = `${message} <span class="badge bg-secondary">${new Date().toLocaleTimeString()}</span>`;
-            logList.prepend(li);
-        }
-
-        function handleBooking() {
-            const groupSize = parseInt(document.getElementById('groupSize').value);
-            const checkDate = "2025-11-11";
-            const startTime = document.getElementById('startTime').value;
-            const endTime = document.getElementById('endTime').value;
-
-            if (!document.getElementById('employeeId').value || !startTime || !endTime || startTime >= endTime) {
-                logBooking('<span class="text-danger">Simulation failed: Check input fields.</span>');
-                return;
-            }
-
-            const recommendedRooms = lastSuggestions;
-
-            if (recommendedRooms.length > 0) {
-                const bestRoom = recommendedRooms[0];
-                let optionsHtml = '<div id="roomOptions" class="list-group ai-options-list">';
-
-                recommendedRooms.forEach((room, index) => {
-                    optionsHtml += `
-                        <button type="button" class="list-group-item list-group-item-action ${index === 0 ? 'list-group-item-warning' : ''}"
-                                onclick="confirmBooking('${room.id}', ${room.capacity}, ${room.distance})">
-                            <b>#${room.rank} - ${room.id}</b>
-                            <span class="badge text-bg-secondary ms-2">Cap: ${room.capacity}</span>
-                            <span class="badge text-bg-primary ms-2">Dist: ${room.distance} units</span>
-                            <span class="float-end">Select &raquo;</span>
-                        </button>
-                    `;
-                });
-                optionsHtml += '</div>';
-
-                document.getElementById('modalContent').innerHTML = `
-                    <p>Hi **${window.userId}**, the AI has found **${recommendedRooms.length} available rooms**.</p>
-                    <p>The top choice, **${bestRoom.id}**, is the nearest available room (${bestRoom.distance} units). Select an option to confirm:</p>
-                    ${optionsHtml}`;
-
-                new bootstrap.Modal(document.getElementById('aiSuggestionModal')).show();
-            } else {
-                logBooking('<span class="text-danger">No available rooms matched criteria.</span>');
-                document.getElementById('modalContent').innerHTML = `
-                    <div class="alert alert-danger" role="alert">
-                        ❌ <strong>No Match Found.</strong> No available rooms for ${groupSize} people during that slot.
-                    </div>
-                `;
-                new bootstrap.Modal(document.getElementById('aiSuggestionModal')).show();
-            }
-        }
-
-        function confirmBooking(roomId, capacity, distance) {
-            const checkDate = "2025-11-11";
-            const startTime = document.getElementById('startTime').value;
-            const endTime = document.getElementById('endTime').value;
-            const groupSize = parseInt(document.getElementById('groupSize').value);
-
-            const newBooking = {
-                roomId: roomId,
-                date: checkDate,
-                start: startTime,
-                end: endTime,
-                bookedBy: window.userId,
-                groupSize: groupSize,
-                topic: 'Proximity Booking',
-                createdAt: new Date().toISOString()
-            };
-
-            allBookings.push(newBooking);
-
-            document.getElementById('modalContent').innerHTML = `
-                <div class="text-center">
-                    <h4 class="text-success mb-3">🎉 Booking Confirmed!</h4>
-                    <div class="alert alert-success" role="alert">
-                        <b>Room:</b> ${roomId}<br>
-                        <b>Time:</b> ${startTime} to ${endTime}.<br>
-                        <b>Distance:</b> ${distance} units
-                    </div>
-                    <p class="mt-4 fw-bold">Booking confirmed! Keep those steps low and your energy high. It's smart planning, just like your consistent jogging!</p>
+            <div class="flex-1">
+
+              <div class="flex flex-wrap gap-2 items-center">
+                <h3 class="text-xs font-bold text-slate-800">
+                  ${x.name}
+                </h3>
+
+                <span class="text-[9px] px-1.5 py-0.5 rounded ${
+                  rare
+                    ? "bg-red-50 text-red-700"
+                    : "bg-blue-50 text-blue-700"
+                } font-semibold">
+                  ${x.category}
+                </span>
+              </div>
+
+              <p class="text-[11px] text-slate-500 leading-5 mt-1.5">
+                ${x.rationale}
+              </p>
+
+              <div class="flex items-center gap-2 mt-2">
+
+                <div class="flex-1 bar">
+                  <div style="width:${x.score}%;background:${
+                    rare ? "#dc2626" : "#2563eb"
+                  }"></div>
                 </div>
-            `;
 
-            logBooking(`<span class="text-success">Booked ${roomId} for ${startTime}-${endTime}.</span>`);
-            handleLogicUpdate();
-        }
+                <span class="text-[10px] font-bold text-slate-500">
+                  ${x.score}
+                </span>
 
-        window.onload = function () {
-            setInitialTime();
-            init3DScene();
-            animate();
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      `;
+    }).join("");
+}
 
 
-            document.getElementById('employeeId')?.addEventListener('input', handleLogicUpdate);
-            document.getElementById('startTime')?.addEventListener('change', handleLogicUpdate);
-            document.getElementById('endTime')?.addEventListener('change', handleLogicUpdate);
-            document.getElementById('groupSize')?.addEventListener('input', handleLogicUpdate);
-            document.getElementById('confirmBookingBtn')?.addEventListener('click', handleBooking);
+/* ==========================================================
+   NEXT STEPS
+========================================================== */
 
-            window.confirmBooking = confirmBooking;
+function renderNextSteps() {
 
-            handleLogicUpdate();
-        }
-    </script>
+  document.getElementById("next-steps").innerHTML =
+    currentCase.nextSteps.map((x, i) => `
+      <label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+
+        <input
+          type="checkbox"
+          class="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          onchange="nextStepChecked(this)"
+        />
+
+        <span class="text-[11px] text-slate-600 leading-5">
+          ${x}
+        </span>
+
+      </label>
+    `).join("");
+}
+
+
+function nextStepChecked(el) {
+
+  const span = el.parentElement.querySelector("span");
+
+  span.classList.toggle("line-through", el.checked);
+  span.classList.toggle("text-slate-400", el.checked);
+}
+
+
+/* ==========================================================
+   EVIDENCE
+========================================================== */
+
+function renderEvidence() {
+
+  document.getElementById("evidence").innerHTML =
+    currentCase.evidence.map((x, i) => `
+      <div class="border border-slate-200 rounded-lg overflow-hidden">
+
+        <div class="p-3">
+
+          <div class="flex gap-2">
+
+            <div class="w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+            </div>
+
+            <div class="flex-1 min-w-0">
+
+              <div class="text-xs font-bold text-slate-700">
+                ${x.title}
+              </div>
+
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-[9px] text-slate-400">
+                  ${x.source}
+                </span>
+
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold">
+                  ${x.strength} evidence
+                </span>
+              </div>
+
+            </div>
+
+            <button onclick="toggleEvidence(${i})"
+              class="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-50">
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </button>
+
+          </div>
+
+        </div>
+
+        <div id="evidence-${i}" class="hidden border-t border-slate-100 bg-slate-50 p-3">
+
+          <p class="text-[10px] text-slate-500 leading-5 mb-2">
+            Demonstration-only citation. The link opens a PubMed search and is not
+            a validated source for the simulated reasoning output.
+          </p>
+
+          <a href="${x.url}" target="_blank" rel="noopener noreferrer"
+             class="text-[10px] font-semibold text-blue-600 hover:underline flex items-center gap-1">
+            Open PubMed search
+            <i data-lucide="external-link" class="w-3 h-3"></i>
+          </a>
+
+        </div>
+
+      </div>
+    `).join("");
+}
+
+
+function toggleEvidence(index) {
+
+  const el = document.getElementById("evidence-" + index);
+
+  el.classList.toggle("hidden");
+}
+
+
+/* ==========================================================
+   MULTI AGENT PIPELINE
+========================================================== */
+
+const AGENTS = [
+  {
+    name: "Entity Extraction",
+    icon: "scan-text",
+    description: "Identifying symptoms, risks, biomarkers and temporal patterns..."
+  },
+  {
+    name: "Contradiction & Bias",
+    icon: "radar",
+    description: "Checking the working diagnosis against conflicting evidence..."
+  },
+  {
+    name: "Safety Sentinel",
+    icon: "shield-alert",
+    description: "Searching for urgent threats and missing safety checks..."
+  },
+  {
+    name: "Evidence Synthesis",
+    icon: "book-open-check",
+    description: "Generating ranked alternatives and evidence-grounded next steps..."
+  }
+];
+
+
+async function runEvaluation() {
+
+  const button = document.getElementById("run-btn");
+
+  button.classList.add("disabled");
+
+  const panel = document.getElementById("processing-panel");
+
+  panel.classList.remove("hidden");
+
+  updateAgentStatus("running");
+
+  const steps = document.getElementById("processing-steps");
+
+  steps.innerHTML = AGENTS.map((agent, i) => `
+    <div id="process-${i}"
+         class="rounded-lg border border-slate-200 bg-slate-50 p-2.5 flex items-center gap-2">
+
+      <div class="w-6 h-6 rounded-md bg-white flex items-center justify-center">
+        <i data-lucide="${agent.icon}" class="w-3.5 h-3.5 text-slate-400"></i>
+      </div>
+
+      <div class="min-w-0">
+        <div class="text-[10px] font-bold text-slate-700">${agent.name}</div>
+        <div class="text-[9px] text-slate-400 truncate">Queued</div>
+      </div>
+
+    </div>
+  `).join("");
+
+  lucide.createIcons();
+
+  const bar = document.getElementById("processing-bar");
+  const percent = document.getElementById("processing-percent");
+
+  for (let i = 0; i < AGENTS.length; i++) {
+
+    const card = document.getElementById("process-" + i);
+
+    card.classList.add("border-blue-200", "bg-blue-50");
+
+    const status = card.querySelector(".text-\\[9px\\]");
+
+    if (status) {
+      status.textContent = AGENTS[i].description;
+    }
+
+    for (let p = 0; p <= 25; p += 5) {
+
+      const value = Math.round((i * 25) + p);
+
+      bar.style.width = value + "%";
+      percent.textContent = value + "%";
+
+      await sleep(80);
+    }
+
+    card.classList.remove("border-blue-200", "bg-blue-50");
+    card.classList.add("border-emerald-200", "bg-emerald-50");
+
+    if (status) {
+      status.textContent = "Complete";
+      status.classList.add("text-emerald-600");
+    }
+  }
+
+  await sleep(300);
+
+  panel.classList.add("hidden");
+
+  button.classList.remove("disabled");
+
+  updateAgentStatus("complete");
+
+  state.evaluations[currentCase.id] = true;
+
+  showToast("Multi-agent evaluation complete");
+
+  updateEnterpriseKPIs();
+}
+
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
+function updateAgentStatus(status) {
+
+  const dot = document.getElementById("agent-status-dot");
+  const title = document.getElementById("agent-status-title");
+  const subtitle = document.getElementById("agent-status-subtitle");
+
+  if (status === "running") {
+
+    dot.className =
+      "w-2.5 h-2.5 rounded-full bg-blue-500 pulse-dot";
+
+    title.textContent = "Agents actively evaluating case";
+
+    subtitle.textContent =
+      "Independent reasoning streams are being synthesized.";
+
+  } else if (status === "complete") {
+
+    dot.className =
+      "w-2.5 h-2.5 rounded-full bg-emerald-500";
+
+    title.textContent =
+      "Multi-agent synthesis complete";
+
+    subtitle.textContent =
+      "Contradictions, safety signals, bias challenges and alternatives generated.";
+
+  } else {
+
+    dot.className =
+      "w-2.5 h-2.5 rounded-full bg-emerald-500";
+
+    title.textContent =
+      "Multi-agent synthesis ready";
+
+    subtitle.textContent =
+      "Four independent reasoning agents will evaluate the case.";
+  }
+}
+
+
+/* ==========================================================
+   TABS
+========================================================== */
+
+function switchTab(tab) {
+
+  const copilot = document.getElementById("copilot-view");
+  const intelligence = document.getElementById("intelligence-view");
+
+  const desktopCopilot = document.getElementById("tab-copilot");
+  const desktopIntel = document.getElementById("tab-intelligence");
+
+  const mobileCopilot = document.getElementById("mobile-tab-copilot");
+  const mobileIntel = document.getElementById("mobile-tab-intelligence");
+
+  if (tab === "copilot") {
+
+    copilot.classList.remove("hidden");
+    intelligence.classList.add("hidden");
+
+    desktopCopilot.classList.add("tab-active");
+    desktopCopilot.classList.remove("text-slate-500");
+
+    desktopIntel.classList.remove("tab-active");
+    desktopIntel.classList.add("text-slate-500");
+
+    mobileCopilot.classList.add("tab-active");
+    mobileCopilot.classList.remove("text-slate-500");
+
+    mobileIntel.classList.remove("tab-active");
+    mobileIntel.classList.add("text-slate-500");
+
+  } else {
+
+    copilot.classList.add("hidden");
+    intelligence.classList.remove("hidden");
+
+    desktopIntel.classList.add("tab-active");
+    desktopIntel.classList.remove("text-slate-500");
+
+    desktopCopilot.classList.remove("tab-active");
+    desktopCopilot.classList.add("text-slate-500");
+
+    mobileIntel.classList.add("tab-active");
+    mobileIntel.classList.remove("text-slate-500");
+
+    mobileCopilot.classList.remove("tab-active");
+    mobileCopilot.classList.add("text-slate-500");
+
+    updateEnterpriseKPIs();
+  }
+
+  lucide.createIcons();
+}
+
+
+/* ==========================================================
+   COLLAPSIBLE CARDS
+========================================================== */
+
+function toggleCard(bodyId, iconId) {
+
+  const body = document.getElementById(bodyId);
+  const icon = document.getElementById(iconId);
+
+  body.classList.toggle("hidden");
+
+  icon.setAttribute(
+    "data-lucide",
+    body.classList.contains("hidden")
+      ? "chevron-down"
+      : "chevron-up"
+  );
+
+  lucide.createIcons();
+}
+
+
+/* ==========================================================
+   FEEDBACK
+========================================================== */
+
+function feedback(type) {
+
+  const labels = {
+    acknowledge: "Finding acknowledged and captured.",
+    dismiss: "Finding marked as not relevant.",
+    order: "Recommendation added to mock order set."
+  };
+
+  state.feedback.push({
+    caseId: currentCase.id,
+    type,
+    timestamp: new Date().toISOString()
+  });
+
+  const msg = document.getElementById("feedback-message");
+
+  msg.textContent = labels[type];
+
+  msg.classList.remove("hidden");
+
+  showToast(labels[type]);
+
+  setTimeout(() => {
+    msg.classList.add("hidden");
+  }, 2500);
+}
+
+
+/* ==========================================================
+   ENTERPRISE KPIs
+========================================================== */
+
+function updateEnterpriseKPIs() {
+
+  const evaluated =
+    Object.values(state.evaluations).filter(Boolean).length;
+
+  document.getElementById("evaluated-count").textContent = evaluated;
+
+  let contradictions = 0;
+  let safety = 0;
+
+  Object.values(CASES).forEach(c => {
+    if (state.evaluations[c.id]) {
+      contradictions += c.contradictions.length;
+      safety += c.safety.length;
+    }
+  });
+
+  document.getElementById("kpi-contradictions").textContent =
+    contradictions;
+
+  document.getElementById("kpi-safety").textContent =
+    safety;
+}
+
+
+/* ==========================================================
+   REPORT GENERATOR
+========================================================== */
+
+function generateReport() {
+
+  const c = currentCase;
+
+  const narrative =
+    document.getElementById("case-narrative").value;
+
+  document.getElementById("report-content").innerHTML = `
+
+    <div class="max-w-3xl mx-auto">
+
+      <div class="border-b border-slate-200 pb-5 mb-5">
+
+        <div class="text-[10px] uppercase tracking-widest font-bold text-blue-600">
+          ClinIQ Clinical Reasoning Summary
+        </div>
+
+        <h1 class="text-2xl font-bold text-slate-900 mt-2">
+          ${c.title}
+        </h1>
+
+        <div class="text-xs text-slate-500 mt-1">
+          Generated ${new Date().toLocaleString()}
+        </div>
+
+      </div>
+
+
+      <div class="grid grid-cols-3 gap-3 mb-5">
+
+        <div class="rounded-lg bg-slate-50 p-3">
+          <div class="text-[9px] uppercase text-slate-400">Patient</div>
+          <div class="text-xs font-bold mt-1">
+            ${c.patient.age}y ${c.patient.sex}
+          </div>
+        </div>
+
+        <div class="rounded-lg bg-slate-50 p-3">
+          <div class="text-[9px] uppercase text-slate-400">Setting</div>
+          <div class="text-xs font-bold mt-1">
+            ${c.patient.setting}
+          </div>
+        </div>
+
+        <div class="rounded-lg bg-slate-50 p-3">
+          <div class="text-[9px] uppercase text-slate-400">Working hypothesis</div>
+          <div class="text-xs font-bold mt-1">
+            ${c.working}
+          </div>
+        </div>
+
+      </div>
+
+
+      <section class="mb-6">
+        <h2 class="text-sm font-bold mb-2">Clinical Narrative</h2>
+        <p class="text-xs leading-6 text-slate-600">
+          ${narrative}
+        </p>
+      </section>
+
+
+      <section class="mb-6">
+        <h2 class="text-sm font-bold mb-3">Contradictions</h2>
+
+        <div class="space-y-2">
+          ${c.contradictions.map(x => `
+            <div class="${
+              x.severity === "urgent"
+                ? "bg-red-50 border-red-100"
+                : "bg-amber-50 border-amber-100"
+            } border rounded-lg p-3">
+
+              <div class="text-xs font-bold">
+                ${x.title}
+              </div>
+
+              <div class="text-[11px] text-slate-600 mt-1 leading-5">
+                ${x.detail}
+              </div>
+
+            </div>
+          `).join("")}
+        </div>
+      </section>
+
+
+      <section class="mb-6">
+        <h2 class="text-sm font-bold mb-3">
+          Safety & Red Flags
+        </h2>
+
+        <div class="space-y-2">
+          ${c.safety.map(x => `
+            <div class="bg-red-50 border border-red-100 rounded-lg p-3">
+
+              <div class="text-xs font-bold">
+                ${x.title}
+              </div>
+
+              <div class="text-[11px] text-slate-600 mt-1 leading-5">
+                ${x.detail}
+              </div>
+
+            </div>
+          `).join("")}
+        </div>
+      </section>
+
+
+      <section class="mb-6">
+        <h2 class="text-sm font-bold mb-3">
+          Alternative Differentials
+        </h2>
+
+        <div class="space-y-2">
+          ${c.differentials.map(x => `
+            <div class="border border-slate-200 rounded-lg p-3">
+
+              <div class="flex justify-between">
+                <div class="text-xs font-bold">
+                  ${x.rank}. ${x.name}
+                </div>
+
+                <div class="text-[10px] font-bold text-blue-600">
+                  ${x.score}/100
+                </div>
+              </div>
+
+              <div class="text-[11px] text-slate-500 mt-1 leading-5">
+                ${x.rationale}
+              </div>
+
+            </div>
+          `).join("")}
+        </div>
+      </section>
+
+
+      <section class="mb-6">
+        <h2 class="text-sm font-bold mb-3">
+          Recommended Next Steps
+        </h2>
+
+        <ul class="space-y-2">
+          ${c.nextSteps.map(x => `
+            <li class="flex gap-2 text-[11px] text-slate-600">
+              <span class="text-blue-600">•</span>
+              ${x}
+            </li>
+          `).join("")}
+        </ul>
+      </section>
+
+
+      <div class="mt-8 p-4 rounded-xl bg-slate-100 text-[10px] text-slate-500 leading-5">
+
+        <strong>Demo disclaimer:</strong>
+        This document was generated by a client-side simulated AI engine.
+        It contains synthetic cases, simulated reasoning and mock evidence
+        references. It is not medical advice, a diagnosis, a treatment
+        recommendation, or a substitute for clinician judgment.
+
+      </div>
+
+    </div>
+  `;
+
+  document.getElementById("report-modal").classList.remove("hidden");
+
+  lucide.createIcons();
+}
+
+
+function closeReport() {
+  document.getElementById("report-modal").classList.add("hidden");
+}
+
+
+/* ==========================================================
+   UTILITIES
+========================================================== */
+
+function showAbout() {
+  document.getElementById("about-modal").classList.remove("hidden");
+}
+
+
+function showToast(message) {
+
+  const toast = document.getElementById("toast");
+
+  toast.textContent = message;
+
+  toast.classList.remove("hidden");
+
+  clearTimeout(window.toastTimer);
+
+  window.toastTimer = setTimeout(() => {
+    toast.classList.add("hidden");
+  }, 2500);
+}
+
+
+function showDetail(title, detail) {
+
+  showToast(title + ": " + detail);
+}
+
+
+function escapeText(text) {
+
+  return text
+    .replace(/'/g, "\\'")
+    .replace(/"/g, "&quot;");
+}
+
+
+/* ==========================================================
+   KEYBOARD / MODAL UX
+========================================================== */
+
+document.addEventListener("keydown", e => {
+
+  if (e.key === "Escape") {
+
+    document.getElementById("report-modal").classList.add("hidden");
+
+    document.getElementById("about-modal").classList.add("hidden");
+  }
+});
+
+
+/* ==========================================================
+   DEMO DATA INSPECTION
+   Exposed globally so a hackathon presenter can demonstrate
+   the JSON state in browser console.
+========================================================== */
+
+window.ClinIQ = {
+  cases: CASES,
+  state,
+  getCurrentCase: () => currentCase,
+  runEvaluation,
+  generateReport
+};
+
+</script>
+
 </body>
-
-</html>
+    </html>
